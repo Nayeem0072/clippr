@@ -29,9 +29,13 @@ export const authApi = {
     return res;
   },
   logout: async () => {
-    const res = await apiFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
     setToken(null);
-    return res;
+    try {
+      await apiFetch<{ ok: true }>("/api/auth/logout", { method: "POST" });
+    } catch {
+      // ignore — token already cleared locally
+    }
+    return { ok: true as const };
   },
   checkHandle: (handle: string) =>
     apiFetch<{ available: boolean }>(`/api/auth/check-handle?handle=${encodeURIComponent(handle)}`),

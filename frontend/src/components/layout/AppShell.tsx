@@ -16,6 +16,19 @@ function AnimatedOutlet() {
 export function AppShell() {
   const { isLoggedIn, isLoading } = useAuth();
 
+  if (isLoading) {
+    return (
+      <ToastProvider>
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg className="animate-spin" width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          </svg>
+        </div>
+      </ToastProvider>
+    );
+  }
+
   if (!isLoggedIn) {
     return (
       <ToastProvider>
