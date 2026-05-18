@@ -1,7 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { orgsApi } from "../../api/organizations";
-import { searchApi } from "../../api/search";
 import { useAuth } from "../../hooks/useAuth";
 import { DocCard } from "../../components/document/DocCard";
 import { Button } from "../../components/ui/Button";
@@ -20,9 +19,7 @@ export default function OrgPage() {
 
   const { data: docsData } = useQuery({
     queryKey: ["org-docs", slug],
-    queryFn: () => searchApi.search({ q: "a b c d e", org: slug!, limit: 20 }).catch(() =>
-      ({ results: [], total: 0, page: 1, limit: 20, has_more: false })
-    ),
+    queryFn: () => orgsApi.getDocuments(slug!),
     enabled: !!data,
   });
 
@@ -100,14 +97,14 @@ export default function OrgPage() {
 
       {/* Docs */}
       <section>
-        {!docsData?.results.length ? (
+        {!docsData?.documents.length ? (
           <EmptyState
             title="No pastes yet"
             description="Org members can create pastes visible only to this org."
           />
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-            {docsData.results.map((r) => (
+            {docsData.documents.map((r) => (
               <DocCard key={r.slug} {...r} owner_handle={r.owner_handle} />
             ))}
           </div>

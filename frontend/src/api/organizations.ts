@@ -107,4 +107,9 @@ export const orgsApi = {
       method: "PATCH",
       body: JSON.stringify({ action }),
     }),
+
+  getDocuments: (slug: string, page = 1, limit = 30) =>
+    apiFetch<{ documents: { slug: string; title: string; language: string; description: string | null; privacy: string; owner_id: number; owner_handle: string; created_at: number }[] }>(
+      `/api/orgs/${slug}/documents?page=${page}&limit=${limit}`
+    ),
 };

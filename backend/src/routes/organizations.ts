@@ -207,6 +207,42 @@ app.delete("/:slug", requireAuth, (c) => {
   return c.json({ ok: true });
 });
 
+// GET /api/orgs/:slug/documents
+app.get("/:slug/documents", optionalAuth, (c) => {
+  const { slug } = c.req.param();
+  const me = c.var.user;
+
+  const org = db.query<Org, [string]>("SELECT * FROM organizations WHERE slug = ?").get(slug);
+  if (!org) return c.json({ error: "Not found" }, 404);
+
+  const role = me ? getMemberRole(org.id, me.id) : null;
+  if (org.visibility === "private" && !role) return c.json({ error: "Not found" }, 404);
+
+  const limit = Math.min(Number(c.req.query("limit") ?? 30), 100);
+  const page = Math.max(Number(c.req.query("page") ?? 1), 1);
+  const offset = (page - 1) * limit;
+
+  // Members see org-private docs; non-members only see public docs in this org
+  const privacy = role ? ["public", "org"] : ["public"];
+  const placeholders = privacy.map(() => "?").join(", ");
+
+  const docs = db
+    .query<
+      { slug: string; title: string; language: string; description: string | null; privacy: string; owner_id: number; owner_handle: string; created_at: number },
+      any[]
+    >(
+      `SELECT d.slug, d.title, d.language, d.description, d.privacy, d.owner_id,
+              u.handle as owner_handle, d.created_at
+       FROM documents d JOIN users u ON d.owner_id = u.id
+       WHERE d.org_id = ? AND d.privacy IN (${placeholders})
+       ORDER BY d.created_at DESC
+       LIMIT ? OFFSET ?`
+    )
+    .all(org.id, ...privacy, limit, offset);
+
+  return c.json({ documents: docs });
+});
+
 // GET /api/orgs/:slug/members
 app.get("/:slug/members", requireAuth, (c) => {
   const me = c.var.user!;
