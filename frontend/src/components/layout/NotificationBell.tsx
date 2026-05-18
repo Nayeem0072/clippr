@@ -1,0 +1,182 @@
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { sendsApi } from "../../api/sends";
+import { formatRelative } from "../../lib/utils";
+
+export function NotificationBell() {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const { data: countData } = useQuery({
+    queryKey: ["unread-count"],
+    queryFn: sendsApi.getUnreadCount,
+    refetchInterval: 30_000,
+  });
+
+  const { data: notifData } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: sendsApi.getNotifications,
+    enabled: isOpen,
+  });
+
+  const markRead = useMutation({
+    mutationFn: (sendId: number) => sendsApi.markRead(sendId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["unread-count"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: sendsApi.markAllRead,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["unread-count"] });
+      qc.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const unread = countData?.count ?? 0;
+  const notifications = notifData?.notifications ?? [];
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        className="nav-link"
+        style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
+        title="Notifications"
+      >
+        <div style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1.5A4.5 4.5 0 003.5 6v3.5L2 11h12l-1.5-1.5V6A4.5 4.5 0 008 1.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+            <path d="M6.5 12a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.3"/>
+          </svg>
+          {unread > 0 && (
+            <span style={{
+              position: "absolute", top: -4, right: -6,
+              minWidth: 14, height: 14, borderRadius: 7,
+              background: "#00C4FF", color: "#0A0A14",
+              fontSize: 9, fontWeight: 700,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              padding: "0 3px", lineHeight: 1,
+            }}>
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </div>
+        Notifications
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: "absolute",
+          left: "calc(100% + 8px)",
+          top: 0,
+          width: 320,
+          background: "#2E2E38",
+          border: "1px solid #38383F",
+          borderRadius: 14,
+          boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
+          zIndex: 200,
+          overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px", borderBottom: "1px solid #38383F",
+          }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#EEEEF5" }}>Notifications</span>
+            <button
+              onClick={() => markAllRead.mutate()}
+              disabled={unread === 0 || markAllRead.isPending}
+              style={{
+                background: "none", border: "none", cursor: unread === 0 ? "default" : "pointer",
+                fontSize: 11, color: unread === 0 ? "#555568" : "#00C4FF",
+                padding: 0,
+              }}
+            >
+              Mark all read
+            </button>
+          </div>
+
+          {/* List */}
+          <div style={{ maxHeight: 360, overflowY: "auto" }}>
+            {notifications.length === 0 ? (
+              <div style={{ padding: "32px 16px", textAlign: "center", color: "#555568", fontSize: 13 }}>
+                No notifications yet
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <button
+                  key={n.send_id}
+                  onClick={() => {
+                    markRead.mutate(n.send_id);
+                    navigate(`/docs/${n.slug}`);
+                    setIsOpen(false);
+                  }}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    width: "100%", padding: "12px 16px",
+                    background: n.read_at === null ? "rgba(0,196,255,0.04)" : "none",
+                    border: "none", borderBottom: "1px solid #38383F",
+                    cursor: "pointer", textAlign: "left",
+                    transition: "background 150ms",
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                  onMouseOut={e => (e.currentTarget.style.background = n.read_at === null ? "rgba(0,196,255,0.04)" : "none")}
+                >
+                  <div style={{
+                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5,
+                    background: n.read_at === null ? "#00C4FF" : "transparent",
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      fontSize: 13, color: "#EEEEF5", margin: "0 0 2px",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {n.title}
+                    </p>
+                    <p style={{ fontSize: 11, color: "#555568", margin: 0 }}>
+                      <span style={{ fontFamily: "monospace" }}>@{n.sender_handle}</span>
+                      {" · "}{formatRelative(n.sent_at)}
+                    </p>
+                    {n.message && (
+                      <p style={{ fontSize: 11, color: "#8A8AA2", margin: "3px 0 0", fontStyle: "italic", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        "{n.message}"
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "10px 16px", borderTop: "1px solid #38383F" }}>
+            <Link
+              to="/shared"
+              onClick={() => setIsOpen(false)}
+              style={{ fontSize: 12, color: "#00C4FF", textDecoration: "none" }}
+            >
+              View all shared pastes →
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

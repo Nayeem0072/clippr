@@ -46,7 +46,7 @@ export default function SettingsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, color: "#EEEEF5", margin: 0 }}>Settings</h1>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, alignItems: "start" }}>
         {/* Profile */}
         <div className="pp-card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, color: "#EEEEF5", margin: "0 0 20px", paddingBottom: 12, borderBottom: "1px solid #38383F" }}>

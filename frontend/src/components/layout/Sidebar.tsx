@@ -1,6 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { sendsApi } from "../../api/sends";
+import { NotificationBell } from "./NotificationBell";
 
 interface NavItem {
   to: string;
@@ -52,6 +55,13 @@ const SettingsIcon = () => (
     <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.41 1.41M11.19 11.19l1.41 1.41M3.4 12.6l1.41-1.41M11.19 4.81l1.41-1.41" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
   </svg>
 );
+const SharedIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M2 9h3l1.5 2h3L11 9h3v4a.5.5 0 01-.5.5h-11A.5.5 0 012 13V9z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+    <path d="M2 9V4.5A.5.5 0 012.5 4h11a.5.5 0 01.5.5V9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M8 2v5M6 5l2 2 2-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
 
 export function Sidebar() {
   const { user, logoutAsync } = useAuth();
@@ -96,6 +106,8 @@ export function Sidebar() {
       </p>
       <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <NavLink to={`/${user?.handle}`} label="My Pastes" icon={<DocsIcon />} />
+        <NavLink to="/shared" label="Shared" icon={<SharedIcon />} />
+        <NotificationBell />
         <NavLink to="/settings" label="Settings" icon={<SettingsIcon />} />
       </nav>
 
@@ -155,6 +167,13 @@ export function MobileNav() {
     exact ? pathname === path : pathname === path || pathname.startsWith(path + "/")
   , [pathname]);
 
+  const { data: countData } = useQuery({
+    queryKey: ["unread-count"],
+    queryFn: sendsApi.getUnreadCount,
+    refetchInterval: 30_000,
+  });
+  const unreadCount = countData?.count ?? 0;
+
   const handleLogout = async () => {
     await logoutAsync();
     navigate("/");
@@ -177,6 +196,18 @@ export function MobileNav() {
       <Link to={`/${user?.handle}`} className={`mobile-nav-item ${active(`/${user?.handle ?? "__"}`) ? "active" : ""}`}>
         <DocsIcon />
         Pastes
+      </Link>
+      <Link to="/shared" className={`mobile-nav-item ${active("/shared") ? "active" : ""}`}>
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <SharedIcon />
+          {unreadCount > 0 && (
+            <span style={{
+              position: "absolute", top: -3, right: -4,
+              width: 7, height: 7, borderRadius: "50%", background: "#00C4FF",
+            }} />
+          )}
+        </div>
+        Shared
       </Link>
       <button className="mobile-nav-item" onClick={handleLogout}>
         <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
