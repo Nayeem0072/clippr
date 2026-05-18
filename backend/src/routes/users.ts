@@ -87,6 +87,23 @@ app.patch("/me", requireAuth, async (c) => {
   return c.json({ user: updated });
 });
 
+// GET /api/users/search?q= — prefix search on handle for autocomplete
+app.get("/search", requireAuth, (c) => {
+  const q = c.req.query("q") ?? "";
+  if (q.length < 1) return c.json({ users: [] });
+
+  const users = db
+    .query<
+      { id: number; handle: string; display_name: string | null },
+      [string, string]
+    >(
+      "SELECT id, handle, display_name FROM users WHERE handle LIKE ? OR display_name LIKE ? ORDER BY handle LIMIT 8"
+    )
+    .all(`${q}%`, `%${q}%`);
+
+  return c.json({ users });
+});
+
 // GET /api/users/resolve?q=handle_or_email
 app.get("/resolve", requireAuth, (c) => {
   const q = c.req.query("q");

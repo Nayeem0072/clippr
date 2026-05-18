@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { sendsApi } from "../../api/sends";
@@ -6,7 +7,9 @@ import { formatRelative } from "../../lib/utils";
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -52,10 +55,19 @@ export function NotificationBell() {
   const unread = countData?.count ?? 0;
   const notifications = notifData?.notifications ?? [];
 
+  const handleOpen = () => {
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setDropdownPos({ top: rect.top, left: rect.right + 8 });
+    }
+    setIsOpen((o) => !o);
+  };
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button
-        onClick={() => setIsOpen((o) => !o)}
+        ref={btnRef}
+        onClick={handleOpen}
         className="nav-link"
         style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
         title="Notifications"
@@ -81,17 +93,17 @@ export function NotificationBell() {
         Notifications
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <div style={{
-          position: "absolute",
-          left: "calc(100% + 8px)",
-          top: 0,
+          position: "fixed",
+          top: dropdownPos.top,
+          left: dropdownPos.left,
           width: 320,
           background: "#2E2E38",
           border: "1px solid #38383F",
           borderRadius: 14,
-          boxShadow: "0 16px 48px rgba(0,0,0,0.55)",
-          zIndex: 200,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          zIndex: 9999,
           overflow: "hidden",
         }}>
           {/* Header */}
@@ -175,7 +187,8 @@ export function NotificationBell() {
               View all shared pastes →
             </Link>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
