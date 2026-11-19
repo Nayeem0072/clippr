@@ -33,6 +33,15 @@ async function addUser(handle: string): Promise<number> {
 }
 
 describe("runMigrations", () => {
+  it("contains no PRAGMAs that Turso rejects (only foreign_keys is allowed)", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const dir = new URL("./migrations/", import.meta.url);
+    for (const f of readdirSync(dir).filter((f) => f.endsWith(".sql"))) {
+      const pragmas = readFileSync(new URL(f, dir), "utf8").match(/^\s*PRAGMA\s+(\w+)/gim) ?? [];
+      for (const p of pragmas) expect(`${f}: ${p.trim()}`).toMatch(/PRAGMA\s+foreign_keys$/i);
+    }
+  });
+
   it("applies every migration once and is idempotent", async () => {
     const applied = await db.query<{ name: string }>("SELECT name FROM _migrations ORDER BY name").all();
     expect(applied.map((r) => r.name)).toEqual([

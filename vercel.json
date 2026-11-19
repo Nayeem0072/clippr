@@ -3,6 +3,7 @@
   "installCommand": "bun install",
   "buildCommand": "cd backend && bun run migrate && cd ../frontend && bun run build",
   "outputDirectory": "frontend/dist",
+  "regions": ["bom1"],
   "functions": {
     "api/index.ts": {
       "includeFiles": "backend/assets/**",

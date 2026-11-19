@@ -1,6 +1,5 @@
-PRAGMA journal_mode=WAL;
-PRAGMA synchronous=NORMAL;
-PRAGMA busy_timeout=5000;
+-- Connection tuning pragmas (WAL, synchronous, busy_timeout) live in src/db/client.ts
+-- for local files only: Turso rejects them ("SQL not allowed statement").
 PRAGMA foreign_keys=ON;
 
 CREATE TABLE IF NOT EXISTS users (

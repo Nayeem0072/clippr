@@ -101,7 +101,7 @@ All UI work must be mobile-friendly. Breakpoint is `768px`. On mobile:
 ### Deployment
 - **Vercel (everything)**: one project with the **repo root** as its root directory. Root `vercel.json` installs with Bun, runs migrations, builds `frontend/` into `frontend/dist`, and rewrites `/api/*` to the single function `api/index.ts`. Bot user-agents on `/docs/:slug` and `/join/:code` are rewritten to the same-origin `/api/og/meta/...` routes.
 - **Env vars (Vercel)**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `FRONTEND_URL` (production URL — used for OG meta links and CORS), `NODE_ENV=production`. Leave `VITE_API_URL` **unset** so the frontend calls same-origin `/api`.
-- **Database**: Turso (libSQL). FTS5 + triggers work unchanged.
+- **Database**: Turso (libSQL). FTS5 + triggers work unchanged. Databases `clippr` (prod) and `clippr-preview` live in AWS `ap-south-1` (Mumbai); `vercel.json` pins functions to `bom1` (Mumbai) to keep query latency low — change both together if you move regions. Turso rejects connection PRAGMAs (`journal_mode`, `synchronous`, `busy_timeout`) in migrations; only `foreign_keys` is allowed (guarded by a test).
 - **Preview deployments**: migrations run during *every* Vercel build. Scope the production `TURSO_*` vars to the **Production** environment only and give **Preview** its own Turso database, so a branch's migration never touches production data before merge.
 - **Self-hosted alternative**: Docker — `docker-compose.yml` at repo root, SQLite file in named volume `db_data` (`DB_PATH=/data/pastebin.db`).
 
