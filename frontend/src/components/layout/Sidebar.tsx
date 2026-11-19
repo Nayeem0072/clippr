@@ -50,6 +50,12 @@ const PlusIcon = () => (
     <path d="M8 5v6M5 8h6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
   </svg>
 );
+const MuxIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <rect x="1.5" y="1.5" width="13" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.4"/>
+    <path d="M7 1.5v13M7 8h7.5" stroke="currentColor" strokeWidth="1.4"/>
+  </svg>
+);
 const SettingsIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
     <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.4"/>
@@ -164,6 +170,7 @@ export function Sidebar() {
         <NavLink to={`/${user?.handle}`} label="My Pastes" icon={<DocsIcon />} />
         <NavLink to="/shared" label="Shared" icon={<SharedIcon />} />
         <NavLink to="/saved" label="Saved" icon={<SavedIcon />} />
+        <NavLink to="/mux" label="Mux" icon={<MuxIcon />} />
       </nav>
 
       <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, paddingLeft: 14 }}>
@@ -294,6 +301,10 @@ export function MobileNav() {
       <Link to="/saved" className={`mobile-nav-item ${active("/saved") ? "active" : ""}`}>
         <SavedIcon />
         Saved
+      </Link>
+      <Link to="/mux" className={`mobile-nav-item ${active("/mux") ? "active" : ""}`}>
+        <MuxIcon />
+        Mux
       </Link>
       <Link to="/groups" className={`mobile-nav-item ${active("/groups") ? "active" : ""}`}>
         <OrgsIcon />

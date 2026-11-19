@@ -23,6 +23,7 @@ import GroupListPage from "./pages/group/GroupListPage";
 import SharedPage from "./pages/shared/SharedPage";
 import SavedPage from "./pages/saved/SavedPage";
 import TrendingPage from "./pages/trending/TrendingPage";
+import MuxPage from "./pages/mux/MuxPage";
 import NotFoundPage from "./pages/errors/NotFoundPage";
 
 function HomeRedirect() {
@@ -59,6 +60,7 @@ export default function App() {
 
         <Route path="/shared" element={<ProtectedRoute><SharedPage /></ProtectedRoute>} />
         <Route path="/saved"  element={<ProtectedRoute><SavedPage /></ProtectedRoute>} />
+        <Route path="/mux"    element={<ProtectedRoute><MuxPage /></ProtectedRoute>} />
 
         {/* Handle routes last — must be after /groups, /docs, etc. */}
         <Route path="/:handle" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />

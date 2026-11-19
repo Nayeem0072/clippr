@@ -80,6 +80,13 @@ describe("auth", () => {
     expect(me.data.user.id).toBe(alice.user.id);
   });
 
+  it("rejects reserved handles that would shadow app routes", async () => {
+    const r = await call("POST", "/api/auth/signup", { email: `mux-${uid}@example.com`, password: "password123", handle: "mux" });
+    expect(r.status).toBe(400);
+    expect((await call("GET", "/api/auth/check-handle?handle=mux")).data.available).toBe(false);
+    expect((await call("GET", "/api/auth/check-handle?handle=settings")).data.available).toBe(false);
+  });
+
   it("check-handle reports availability", async () => {
     expect((await call("GET", `/api/auth/check-handle?handle=${handle("alice")}`)).data.available).toBe(false);
     expect((await call("GET", `/api/auth/check-handle?handle=${handle("nobody")}`)).data.available).toBe(true);
@@ -135,6 +142,56 @@ describe("documents", () => {
     expect(r.status).toBe(200);
     expect(r.data.total).toBe(0);
     expect(r.data.docs).toEqual([]);
+  });
+});
+
+describe("documents: concurrent edits (expected_updated_at)", () => {
+  it("saves when expected_updated_at matches, and rejects a stale one with 409", async () => {
+    const { data } = await call("POST", "/api/documents", { title: "Keep", content: "v1", privacy: "private" }, alice.token);
+    const loaded = (await call("GET", `/api/documents/${data.slug}`, undefined, alice.token)).data.doc;
+
+    const ok = await call(
+      "PATCH", `/api/documents/${data.slug}`,
+      { content: "v2 content", expected_updated_at: loaded.updated_at }, alice.token
+    );
+    expect(ok.status).toBe(200);
+    expect(ok.data.doc.content).toBe("v2 content");
+    expect(ok.data.doc.highlighted_html).toContain("v2 content");
+    // content-only edit leaves other fields alone
+    expect(ok.data.doc.title).toBe("Keep");
+    expect(ok.data.doc.privacy).toBe("private");
+
+    const stale = await call(
+      "PATCH", `/api/documents/${data.slug}`,
+      { content: "v3", expected_updated_at: loaded.updated_at - 100 }, alice.token
+    );
+    expect(stale.status).toBe(409);
+    expect(stale.data.doc.content).toBe("v2 content");
+    const after = await call("GET", `/api/documents/${data.slug}`, undefined, alice.token);
+    expect(after.data.doc.content).toBe("v2 content");
+  });
+
+  it("without expected_updated_at behaves as before (last write wins)", async () => {
+    const { data } = await call("POST", "/api/documents", { content: "a" }, alice.token);
+    const r = await call("PATCH", `/api/documents/${data.slug}`, { content: "b" }, alice.token);
+    expect(r.status).toBe(200);
+    expect(r.data.doc.content).toBe("b");
+  });
+
+  it("rejects a non-numeric expected_updated_at", async () => {
+    const { data } = await call("POST", "/api/documents", { content: "a" }, alice.token);
+    const r = await call("PATCH", `/api/documents/${data.slug}`, { content: "b", expected_updated_at: "x" }, alice.token);
+    expect(r.status).toBe(400);
+  });
+
+  it("non-owners still get 403, even with a matching expected_updated_at", async () => {
+    const { data } = await call("POST", "/api/documents", { content: "a" }, alice.token);
+    const loaded = (await call("GET", `/api/documents/${data.slug}`)).data.doc;
+    const r = await call(
+      "PATCH", `/api/documents/${data.slug}`,
+      { content: "hijack", expected_updated_at: loaded.updated_at }, bob.token
+    );
+    expect(r.status).toBe(403);
   });
 });
 

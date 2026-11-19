@@ -407,7 +407,10 @@
     justify-content: center;
     gap: 3px;
     flex: 1;
-    font-size: 10px;
+    min-width: 0;
+    font-size: 9.5px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
     font-weight: 500;
     color: var(--color-ink-3);
     text-decoration: none;
@@ -453,3 +456,181 @@
 .animate-fade-up { animation: fade-up 0.25s ease forwards; }
 .animate-fade-in { animation: fade-in 0.2s ease forwards; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* ── Mux panel ─────────────────────────────────────────── */
+.mux-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: calc(100vh - 56px); /* .app-main has 28px top + bottom padding */
+  min-height: 420px;
+}
+.mux-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mux-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.mux-slot {
+  position: absolute;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+.mux-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.mux-pane.focused {
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 2px var(--color-blue-dim, transparent);
+}
+.mux-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  min-height: 40px;
+  flex-wrap: wrap;
+}
+.mux-pane-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+}
+.mux-pane-heading > * { flex-shrink: 0; }
+.mux-pane-heading > .mux-pane-title { flex-shrink: 1; }
+.mux-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.mux-pane-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.mux-pane-meta {
+  font-size: 12px;
+  color: var(--color-ink-3);
+  white-space: nowrap;
+}
+.mux-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--color-bg);
+}
+.mux-pane-body .code-editor-wrapper {
+  border: none;
+  border-radius: 0;
+  height: 100%;
+}
+.mux-pane-body .code-editor-wrapper > div,
+.mux-pane-body .cm-editor { height: 100%; }
+.mux-pane-body .code-editor-wrapper:focus-within { box-shadow: none; }
+.mux-empty {
+  height: 100%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+}
+.mux-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-3);
+  cursor: pointer;
+}
+.mux-icon-btn:hover { color: var(--color-ink); background: var(--color-hover-overlay); }
+.mux-dirty-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-blue);
+  flex-shrink: 0;
+}
+.mux-conflict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-ink);
+  background: rgba(234, 179, 8, 0.12);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.35);
+}
+.mux-divider {
+  position: absolute;
+  z-index: 2;
+  touch-action: none;
+}
+.mux-divider.row { cursor: col-resize; }
+.mux-divider.col { cursor: row-resize; }
+.mux-divider:hover,
+.mux-divider:focus-visible { background: var(--color-blue-dim, rgba(0, 196, 255, 0.2)); outline: none; border-radius: 4px; }
+.mux-picker-item:hover { background: var(--color-hover-overlay) !important; }
+.mux-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.mux-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-subtle);
+  background: transparent;
+  color: var(--color-ink-3);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mux-tab.active { color: var(--color-ink); border-color: var(--color-blue); }
+
+@media (max-width: 768px) {
+  /* 57px mobile top bar + 20px top / 84px bottom main padding */
+  .mux-root { height: calc(100dvh - 57px - 104px); min-height: 360px; }
+  .mux-desktop-only { display: none !important; }
+  .mux-pane-heading .mux-pane-meta { display: none; }
+}

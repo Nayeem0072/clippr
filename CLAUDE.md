@@ -86,6 +86,8 @@ Route files map 1:1 to resource: `auth.ts`, `documents.ts`, `organizations.ts`, 
 - **Layout**: `AppShell` renders either `TopNav` layout (logged-out) or `Sidebar` layout (logged-in) based on auth state. Shows a full-page spinner while auth is loading to prevent layout flash.
 - **API layer**: All requests go through `apiFetch` in `api/client.ts` which attaches the Bearer token and `ngrok-skip-browser-warning` header automatically.
 - **Routing**: `ProtectedRoute` wraps auth-required pages. `/` redirects to `/new` when logged in via `HomeRedirect` component.
+- **Reserved handles**: profiles live at `/:handle`, so `backend/src/lib/reservedHandles.ts` blocks handles that would shadow a top-level route. Add new top-level routes there too.
+- **Mux panel** (`/mux`, `pages/mux/MuxPage.tsx`): tmux-style split panes of pastes. The layout is a binary split tree (`lib/muxTree.ts`, pure + unit-tested with `bun test`) stored per user in `localStorage` (`clippr-mux:<userId>`); `computeLayout` flattens it to absolute rects so panes never remount when splitting/closing (editors keep drafts). Owners edit **content only** in a pane; saves send `PATCH /api/documents/:slug` with `expected_updated_at`, which returns **409** if the paste changed elsewhere (pane shows Reload / Overwrite).
 
 ### Key data model notes
 - Documents have three privacy levels: `public`, `org` (org members only), `private` (owner + explicitly shared users)
