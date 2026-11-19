@@ -105,9 +105,8 @@ All UI work must be mobile-friendly. Breakpoint is `768px`. On mobile:
 - **Preview deployments**: migrations run during *every* Vercel build. Scope the production `TURSO_*` vars to the **Production** environment only and give **Preview** its own Turso database, so a branch's migration never touches production data before merge.
 - **Self-hosted alternative**: Docker — `docker-compose.yml` at repo root, SQLite file in named volume `db_data` (`DB_PATH=/data/pastebin.db`).
 
-### Turso cutover checklist (moving data from the Docker VM)
-1. On the VM: `sqlite3 /data/pastebin.db "PRAGMA wal_checkpoint(TRUNCATE);"`, then copy the `.db` file off the VM (or use `sqlite3 ... ".backup out.db"`).
-2. `turso db create pastepad --from-file pastebin.db`, then `turso db tokens create pastepad`.
-3. Verify in `turso db shell pastepad`: `SELECT name FROM _migrations;` lists 001–006, `SELECT COUNT(*) FROM documents_fts;` matches `documents`, and **`PRAGMA foreign_keys;` returns 1** — the schema relies on `ON DELETE CASCADE`. If it returns 0, FK enforcement must be handled before going live.
-4. Deploy, smoke test (signup/login, create paste, search, OG image, group join), then switch the domain. Keep the VM read-only for a few days as a rollback.
-5. Users whose password is longer than 72 bytes and was hashed by the old `Bun.password` cannot be verified on Vercel's Node runtime (Bun's pre-hash format isn't reproducible); they need a password reset. Shorter passwords (the normal case) verify unchanged.
+### First-time Turso setup (fresh database, no data to import)
+1. `turso db create pastepad`, then `turso db tokens create pastepad`.
+2. Set the env vars above on Vercel and deploy. The build runs `bun run migrate`, which creates the schema on the empty database.
+3. Verify in `turso db shell pastepad`: `SELECT name FROM _migrations;` lists 001–006, and **`PRAGMA foreign_keys;` returns 1**. The schema relies on `ON DELETE CASCADE`, so if it returns 0, fix FK enforcement before going live.
+4. Smoke test: signup/login, create a paste, search, OG image, group join.

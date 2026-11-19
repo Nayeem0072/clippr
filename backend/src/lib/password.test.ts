@@ -1,5 +1,5 @@
 /**
- * Tests for src/lib/password.ts (bcryptjs, replacing Bun.password so the API can run
+ * Tests for src/lib/password.ts (bcryptjs, so the API can run
  * on Vercel's Node.js runtime).
  */
 import { describe, it, expect } from "bun:test";
@@ -21,12 +21,6 @@ describe("hashPassword / verifyPassword", () => {
   it("produces a different salt each time", async () => {
     const [a, b] = await Promise.all([hashPassword("same"), hashPassword("same")]);
     expect(a).not.toBe(b);
-  });
-
-  it("verifies hashes created by Bun.password (existing users keep working)", async () => {
-    const legacy = await Bun.password.hash("legacy-password", { algorithm: "bcrypt", cost: 4 });
-    expect(await verifyPassword("legacy-password", legacy)).toBe(true);
-    expect(await verifyPassword("legacy-passwordX", legacy)).toBe(false);
   });
 
   it("uses the whole input for passwords longer than bcrypt's 72-byte limit", async () => {

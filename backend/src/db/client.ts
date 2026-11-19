@@ -49,7 +49,7 @@ export class Db {
   constructor(readonly client: Client, isLocalFile: boolean) {
     // Local SQLite files get the same pragmas the bun:sqlite setup used. Remote Turso
     // databases are reached over HTTP where per-connection pragmas don't persist, so FK
-    // enforcement (needed for ON DELETE CASCADE) is checked at cutover: see CLAUDE.md.
+    // enforcement (needed for ON DELETE CASCADE) is checked during setup: see CLAUDE.md.
     this.ready = isLocalFile
       ? client
           .executeMultiple(
