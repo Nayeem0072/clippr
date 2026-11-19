@@ -6,7 +6,7 @@ A lightweight pastebin for sharing code, configs, and notes. Syntax highlighted.
 
 - **Backend** — Bun + Hono, SQLite (FTS5 full-text search), JWT auth
 - **Frontend** — React + Vite, TypeScript
-- **Deployment** — Railway (backend), Vercel (frontend)
+- **Deployment** — Vercel (frontend + API as a serverless function), Turso (libSQL database)
 
 ## Features
 
@@ -47,5 +47,11 @@ bun run dev
 
 ## Deploy
 
-- **Backend**: Connect the `backend/` directory to a Railway service. Set env vars from `.env.example`.
-- **Frontend**: Connect the `frontend/` directory to Vercel. Set `VITE_API_URL` to your Railway backend URL.
+Everything runs on **Vercel** with a **Turso** database:
+
+1. Create the database: `turso db create pastepad` and `turso db tokens create pastepad`.
+2. Import the repo into Vercel with the **repository root** as the project root (not `frontend/`). `vercel.json` sets the install/build commands, output dir and API rewrites.
+3. Set env vars on Vercel: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `FRONTEND_URL` (your Vercel URL), `NODE_ENV=production`. Leave `VITE_API_URL` unset: the API is same-origin at `/api`.
+4. Deploy. Migrations run during the build (`bun run migrate`).
+
+The Docker setup (`docker compose up -d --build`) still works as a self-hosted alternative using a local SQLite file via `DB_PATH`.

@@ -1,6 +1,7 @@
 {
   "name": "pp",
   "private": true,
+  "type": "module",
   "workspaces": ["backend", "frontend"],
   "scripts": {
     "dev:backend": "cd backend && bun run dev",

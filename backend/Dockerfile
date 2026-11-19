@@ -1,15 +1,13 @@
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
-# Fonts required by resvg for OG image text rendering
-RUN apk add --no-cache fontconfig ttf-dejavu
-
 # Install dependencies
 COPY package.json bun.lock* ./
 RUN bun install --frozen-lockfile --production
 
 # Copy source
 COPY src/ ./src/
+COPY assets/ ./assets/
 COPY tsconfig.json ./
 
 # Data directory for SQLite

@@ -1,7 +1,7 @@
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 
-const insertLog = db.prepare("INSERT INTO rate_limit_log (key) VALUES (?)");
-const countLog = db.prepare<{ cnt: number }, [string, number]>(
+const insertLog = db.prepare<unknown, [string]>("INSERT INTO rate_limit_log (key) VALUES (?)");
+const countLog = db.query<{ cnt: number }, [string, number]>(
   "SELECT COUNT(*) as cnt FROM rate_limit_log WHERE key = ? AND created_at > ?"
 );
 const purgeLog = db.prepare<unknown, [string, number]>(
@@ -13,16 +13,16 @@ const purgeLog = db.prepare<unknown, [string, number]>(
  * windowSec: sliding window in seconds
  * maxHits: max allowed hits in the window
  */
-export function checkRateLimit(key: string, windowSec: number, maxHits: number): boolean {
+export async function checkRateLimit(key: string, windowSec: number, maxHits: number): Promise<boolean> {
   const now = Math.floor(Date.now() / 1000);
   const windowStart = now - windowSec;
 
   // Lazy purge old entries
-  purgeLog.run(key, windowStart);
+  await purgeLog.run(key, windowStart);
 
-  const { cnt } = countLog.get(key, windowStart)!;
+  const { cnt } = (await countLog.get(key, windowStart))!;
   if (cnt >= maxHits) return true; // blocked
 
-  insertLog.run(key);
+  await insertLog.run(key);
   return false;
 }

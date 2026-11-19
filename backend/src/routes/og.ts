@@ -1,9 +1,22 @@
 import { Hono } from "hono";
 import { Resvg } from "@resvg/resvg-js";
-import { db } from "../db/client";
+import { fileURLToPath } from "node:url";
+import { db } from "../db/client.js";
 
-function svgToPng(svg: string): Uint8Array {
-  return new Resvg(svg, { fitTo: { mode: "width", value: 1200 } }).render().asPng();
+// Fonts are bundled with the app (serverless hosts have no system fonts).
+// Shipped to Vercel functions via `includeFiles` in vercel.json.
+const FONT_FILES = ["DejaVuSansMono.ttf", "DejaVuSansMono-Bold.ttf"].map((f) =>
+  fileURLToPath(new URL(`../../assets/fonts/${f}`, import.meta.url))
+);
+
+function svgToPng(svg: string): Uint8Array<ArrayBuffer> {
+  const png = new Resvg(svg, {
+    fitTo: { mode: "width", value: 1200 },
+    font: { fontFiles: FONT_FILES, loadSystemFonts: false, defaultFontFamily: "DejaVu Sans Mono" },
+  })
+    .render()
+    .asPng();
+  return new Uint8Array(png);
 }
 
 const app = new Hono();
@@ -38,16 +51,16 @@ function langColor(lang: string) {
 
 // ── Paste image ────────────────────────────────────────────────────────────
 
-app.get("/image/:slug", (c) => {
+app.get("/image/:slug", async (c) => {
   const slug = c.req.param("slug").replace(/\.png$/, "");
 
-  const row = db.query<
+  const row = await db.query<
     { title: string; content: string; language: string; privacy: string; owner_id: number },
     [string]
   >("SELECT title, content, language, privacy, owner_id FROM documents WHERE slug = ?").get(slug);
 
   const owner = row
-    ? db.query<{ handle: string }, [number]>(
+    ? await db.query<{ handle: string }, [number]>(
         "SELECT handle FROM users WHERE id = ?"
       ).get(row.owner_id)
     : null;
@@ -89,13 +102,13 @@ app.get("/image/:slug", (c) => {
 
 // ── Paste meta shell ───────────────────────────────────────────────────────
 
-app.get("/meta/:slug", (c) => {
+app.get("/meta/:slug", async (c) => {
   const { slug } = c.req.param();
   const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
   const backendOrigin = new URL(c.req.url).origin.replace(/^http:\/\//, "https://");
   const dest = `${frontendUrl}/docs/${slug}`;
 
-  const row = db.query<
+  const row = await db.query<
     { title: string; content: string; privacy: string; owner_id: number },
     [string]
   >("SELECT title, content, privacy, owner_id FROM documents WHERE slug = ?").get(slug);
@@ -116,10 +129,10 @@ app.get("/meta/:slug", (c) => {
 
 // ── Invite image ───────────────────────────────────────────────────────────
 
-app.get("/image/invite/:code", (c) => {
+app.get("/image/invite/:code", async (c) => {
   const code = c.req.param("code").replace(/\.png$/, "");
 
-  const invite = db.query<{ group_id: number; use_count: number; max_uses: number | null; expires_at: number | null }, [string]>(
+  const invite = await db.query<{ group_id: number; use_count: number; max_uses: number | null; expires_at: number | null }, [string]>(
     "SELECT group_id, use_count, max_uses, expires_at FROM group_code_invites WHERE code = ?"
   ).get(code);
 
@@ -133,14 +146,14 @@ app.get("/image/invite/:code", (c) => {
     (invite.max_uses && invite.use_count >= invite.max_uses);
   if (expired) return c.body(svgToPng(inviteUnavailableSvg()));
 
-  const group = db.query<{ name: string; description: string | null }, [number]>(
+  const group = await db.query<{ name: string; description: string | null }, [number]>(
     "SELECT name, description FROM groups WHERE id = ?"
   ).get(invite.group_id);
 
   if (!group) return c.body(svgToPng(inviteUnavailableSvg()));
 
   const memberCount = (
-    db.query<{ cnt: number }, [number]>(
+    await db.query<{ cnt: number }, [number]>(
       "SELECT COUNT(*) as cnt FROM group_members WHERE group_id = ?"
     ).get(invite.group_id)
   )?.cnt ?? 0;
@@ -168,7 +181,7 @@ app.get("/image/invite/:code", (c) => {
 
 // ── Invite meta shell ──────────────────────────────────────────────────────
 
-app.get("/meta/invite/:code", (c) => {
+app.get("/meta/invite/:code", async (c) => {
   const { code } = c.req.param();
   const frontendUrl = (process.env.FRONTEND_URL ?? "").replace(/\/$/, "");
   const backendOrigin = new URL(c.req.url).origin.replace(/^http:\/\//, "https://");
@@ -176,7 +189,7 @@ app.get("/meta/invite/:code", (c) => {
 
   c.header("Content-Type", "text/html; charset=utf-8");
 
-  const invite = db.query<{ group_id: number; use_count: number; max_uses: number | null; expires_at: number | null }, [string]>(
+  const invite = await db.query<{ group_id: number; use_count: number; max_uses: number | null; expires_at: number | null }, [string]>(
     "SELECT group_id, use_count, max_uses, expires_at FROM group_code_invites WHERE code = ?"
   ).get(code);
 
@@ -187,14 +200,14 @@ app.get("/meta/invite/:code", (c) => {
     (invite.max_uses && invite.use_count >= invite.max_uses);
   if (expired) return c.body(redirectOnly(dest));
 
-  const group = db.query<{ name: string; description: string | null }, [number]>(
+  const group = await db.query<{ name: string; description: string | null }, [number]>(
     "SELECT name, description FROM groups WHERE id = ?"
   ).get(invite.group_id);
 
   if (!group) return c.body(redirectOnly(dest));
 
   const memberCount = (
-    db.query<{ cnt: number }, [number]>(
+    await db.query<{ cnt: number }, [number]>(
       "SELECT COUNT(*) as cnt FROM group_members WHERE group_id = ?"
     ).get(invite.group_id)
   )?.cnt ?? 0;

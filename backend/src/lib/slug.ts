@@ -1,5 +1,5 @@
 import { customAlphabet } from "nanoid";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 
 // URL-safe alphabet without look-alike chars
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -9,13 +9,10 @@ const checkSlug = db.query<{ id: number }, [string]>(
   "SELECT id FROM documents WHERE slug = ? LIMIT 1"
 );
 
-export function generateSlug(): string {
-  let slug: string;
-  let attempts = 0;
-  do {
-    if (attempts > 10) throw new Error("Failed to generate unique slug after 10 attempts");
-    slug = nanoid();
-    attempts++;
-  } while (checkSlug.get(slug) !== null);
-  return slug;
+export async function generateSlug(): Promise<string> {
+  for (let attempts = 0; attempts <= 10; attempts++) {
+    const slug = nanoid();
+    if ((await checkSlug.get(slug)) === null) return slug;
+  }
+  throw new Error("Failed to generate unique slug after 10 attempts");
 }

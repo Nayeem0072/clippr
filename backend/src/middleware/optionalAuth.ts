@@ -1,8 +1,8 @@
 import { createMiddleware } from "hono/factory";
 import { getCookie } from "hono/cookie";
-import { verifyJWT } from "../lib/jwt";
-import { db } from "../db/client";
-import type { AuthUser } from "../types";
+import { verifyJWT } from "../lib/jwt.js";
+import { db } from "../db/client.js";
+import type { AuthUser } from "../types/index.js";
 
 const getUser = db.query<AuthUser, [number]>(
   "SELECT id, handle, email, display_name, bio, avatar_url, created_at FROM users WHERE id = ?"
@@ -17,7 +17,7 @@ export const optionalAuth = createMiddleware<{ Variables: { user: AuthUser | nul
     if (token) {
       try {
         const payload = await verifyJWT(token);
-        const user = getUser.get(Number(payload.sub));
+        const user = await getUser.get(Number(payload.sub));
         if (user) c.set("user", user);
       } catch {
         // ignore invalid tokens
