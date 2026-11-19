@@ -4,6 +4,7 @@ import { db } from "../db/client.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { signJWT } from "../lib/jwt.js";
 import { checkRateLimit } from "../lib/rateLimit.js";
+import { isReservedHandle } from "../lib/reservedHandles.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { Variables, AuthUser } from "../types/index.js";
 
@@ -54,6 +55,9 @@ app.post("/signup", async (c) => {
   }
   if (!/^[a-z0-9-]{3,32}$/.test(handle)) {
     return c.json({ error: "Handle must be 3-32 chars, lowercase letters, numbers, hyphens only" }, 400);
+  }
+  if (isReservedHandle(handle)) {
+    return c.json({ error: "That handle is reserved" }, 400);
   }
   if (typeof password !== "string" || password.length < 8) {
     return c.json({ error: "Password must be at least 8 characters" }, 400);
@@ -120,6 +124,7 @@ app.get("/me", requireAuth, (c) => {
 app.get("/check-handle", async (c) => {
   const handle = c.req.query("handle");
   if (!handle) return c.json({ error: "handle required" }, 400);
+  if (isReservedHandle(handle)) return c.json({ available: false });
   const taken = !!await db.query("SELECT id FROM users WHERE handle = ? LIMIT 1").get(handle);
   return c.json({ available: !taken });
 });

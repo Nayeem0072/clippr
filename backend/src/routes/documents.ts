@@ -103,7 +103,18 @@ app.patch("/:slug", requireAuth, async (c) => {
   if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
   const body = await c.req.json();
-  const { title, content, language, privacy, group_id } = body ?? {};
+  const { title, content, language, privacy, group_id, expected_updated_at } = body ?? {};
+
+  // Optimistic concurrency: long-lived editors (e.g. the Mux panel) send the updated_at
+  // they loaded, so an edit made elsewhere in the meantime isn't silently overwritten.
+  if (expected_updated_at !== undefined && expected_updated_at !== null) {
+    if (typeof expected_updated_at !== "number") {
+      return c.json({ error: "expected_updated_at must be a number" }, 400);
+    }
+    if (expected_updated_at !== doc.updated_at) {
+      return c.json({ error: "This paste was changed elsewhere", doc }, 409);
+    }
+  }
 
   const updates: string[] = [];
   const values: (string | number | null)[] = [];

@@ -49,7 +49,10 @@ export const docsApi = {
 
   update: (
     slug: string,
-    data: Partial<Pick<Document, "title" | "content" | "language" | "privacy" | "group_id">>
+    data: Partial<Pick<Document, "title" | "content" | "language" | "privacy" | "group_id">> & {
+      /** Reject with 409 if the paste changed since this updated_at was loaded. */
+      expected_updated_at?: number;
+    }
   ) =>
     apiFetch<{ doc: Document }>(`/api/documents/${slug}`, {
       method: "PATCH",
