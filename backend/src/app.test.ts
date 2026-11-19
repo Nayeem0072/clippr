@@ -270,3 +270,33 @@ describe("og images", () => {
     expect([...bytes.slice(1, 4)].map((b) => String.fromCharCode(b)).join("")).toBe("PNG");
   });
 });
+
+describe("bot link previews (Vercel passes the original URL after a rewrite)", () => {
+  it("serves paste meta on /docs/:slug, matching /api/og/meta/:slug", async () => {
+    const { data } = await call("POST", "/api/documents", { title: "Preview me", content: "hello" }, alice.token);
+    const viaRewrite = await app.fetch(new Request(`http://test.local/docs/${data.slug}`, { headers: { "user-agent": "Twitterbot/1.0" } }));
+    expect(viaRewrite.status).toBe(200);
+    const html = await viaRewrite.text();
+    expect(html).toContain('property="og:title"');
+    expect(html).toContain("Preview me");
+    expect(html).toContain(`/api/og/image/${data.slug}`);
+
+    const direct = await app.fetch(new Request(`http://test.local/api/og/meta/${data.slug}`));
+    expect(await direct.text()).toBe(html);
+  });
+
+  it("serves invite meta on /join/:code", async () => {
+    const slug = `p-${uid}`;
+    await call("POST", "/api/groups", { slug, name: "Preview Group" }, alice.token);
+    const inv = await call("POST", `/api/groups/${slug}/invites`, {}, alice.token);
+    const res = await app.fetch(new Request(`http://test.local/join/${inv.data.code}`, { headers: { "user-agent": "Slackbot" } }));
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("Preview Group");
+  });
+
+  it("behaves like the direct meta route for an unknown slug", async () => {
+    const viaRewrite = await app.fetch(new Request("http://test.local/docs/doesnotexist"));
+    const direct = await app.fetch(new Request("http://test.local/api/og/meta/doesnotexist"));
+    expect(viaRewrite.status).toBe(direct.status);
+  });
+});

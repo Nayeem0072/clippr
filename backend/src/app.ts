@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { cors } from "./middleware/cors.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
@@ -28,6 +28,15 @@ app.route("/api/sends", sendsRoutes);
 app.route("/api/saved", savedRoutes);
 app.route("/api/trending", trendingRoutes);
 app.route("/api/og", ogRoutes);
+
+// Link-preview meta for bots. vercel.json rewrites bot requests for /docs/:slug and
+// /join/:code to the API function, but Vercel hands the function the ORIGINAL URL, so
+// they arrive here with those paths. Humans never reach these: the SPA rewrite serves
+// them index.html.
+const forwardToOg = (c: Context, path: string) =>
+  ogRoutes.fetch(new Request(new URL(path, c.req.url), c.req.raw));
+app.get("/docs/:slug", (c) => forwardToOg(c, `/meta/${encodeURIComponent(c.req.param("slug"))}`));
+app.get("/join/:code", (c) => forwardToOg(c, `/meta/invite/${encodeURIComponent(c.req.param("code"))}`));
 
 app.get("/health", (c) => c.json({ ok: true, ts: Date.now() }));
 app.get("/api/health", (c) => c.json({ ok: true, ts: Date.now() }));

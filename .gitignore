@@ -9,3 +9,4 @@ dist/
 frontend/dist/
 .claude/
 .vercel
+.env*.local
