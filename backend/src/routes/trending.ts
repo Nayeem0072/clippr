@@ -1,17 +1,17 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { optionalAuth } from "../middleware/optionalAuth";
-import type { AuthUser } from "../types";
+import { db } from "../db/client.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
+import type { AuthUser } from "../types/index.js";
 
 const app = new Hono<{ Variables: { user: AuthUser | null } }>();
 
 // GET /api/trending?limit=20&days=7
-app.get("/", optionalAuth, (c) => {
+app.get("/", optionalAuth, async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? 20), 50);
   const days = Math.min(Number(c.req.query("days") ?? 7), 30);
   const since = Math.floor(Date.now() / 1000) - days * 86400;
 
-  const weekly = db.query<{
+  const weekly = await db.query<{
     slug: string; title: string; language: string; privacy: string;
     created_at: number; view_count: number;
     owner_handle: string; owner_display_name: string | null;
@@ -38,7 +38,7 @@ app.get("/", optionalAuth, (c) => {
   const remaining = limit - weekly.length;
 
   const placeholders = seen.length > 0 ? seen.map(() => "?").join(",") : "''";
-  const fallback = db.query<{
+  const fallback = await db.query<{
     slug: string; title: string; language: string; privacy: string;
     created_at: number; view_count: number;
     owner_handle: string; owner_display_name: string | null;

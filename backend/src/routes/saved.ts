@@ -1,26 +1,26 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { requireAuth } from "../middleware/auth";
-import { canViewDoc } from "../lib/docAccess";
-import type { Variables, Document } from "../types/index";
+import { db } from "../db/client.js";
+import { requireAuth } from "../middleware/auth.js";
+import { canViewDoc } from "../lib/docAccess.js";
+import type { Variables, Document } from "../types/index.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
 // POST /api/saved — save a paste
 app.post("/", requireAuth, (c) => {
   const me = c.var.user;
-  return c.req.json().then((b: any) => {
+  return c.req.json().then(async (b: any) => {
     const { slug } = b ?? {};
     if (!slug) return c.json({ error: "slug is required" }, 400);
 
-    const doc = db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+    const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
     if (!doc) return c.json({ error: "Not found" }, 404);
 
     if (doc.owner_id === me.id) return c.json({ error: "Cannot save your own paste" }, 400);
-    if (!canViewDoc(doc, me.id)) return c.json({ error: "Forbidden" }, 403);
+    if (!await canViewDoc(doc, me.id)) return c.json({ error: "Forbidden" }, 403);
     if (doc.privacy === "private") return c.json({ error: "Cannot save a private paste" }, 400);
 
-    const result = db
+    const result = await db
       .prepare("INSERT OR IGNORE INTO saved_pastes (user_id, doc_id) VALUES (?, ?)")
       .run(me.id, doc.id);
 
@@ -32,11 +32,11 @@ app.post("/", requireAuth, (c) => {
 
 // GET /api/saved/check/:slug — is this paste saved by the current user?
 // Must be registered before /:slug (DELETE) so "check" isn't treated as a slug param
-app.get("/check/:slug", requireAuth, (c) => {
+app.get("/check/:slug", requireAuth, async (c) => {
   const me = c.var.user;
   const { slug } = c.req.param();
 
-  const row = db
+  const row = await db
     .query<{ is_saved: number }, [string, number]>(
       `SELECT EXISTS(
          SELECT 1 FROM saved_pastes sp
@@ -50,21 +50,21 @@ app.get("/check/:slug", requireAuth, (c) => {
 });
 
 // DELETE /api/saved/:slug — unsave (idempotent)
-app.delete("/:slug", requireAuth, (c) => {
+app.delete("/:slug", requireAuth, async (c) => {
   const me = c.var.user;
   const { slug } = c.req.param();
 
-  const doc = db
+  const doc = await db
     .query<{ id: number }, [string]>("SELECT id FROM documents WHERE slug = ?")
     .get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
 
-  db.prepare("DELETE FROM saved_pastes WHERE user_id = ? AND doc_id = ?").run(me.id, doc.id);
+  await db.prepare("DELETE FROM saved_pastes WHERE user_id = ? AND doc_id = ?").run(me.id, doc.id);
   return c.json({ ok: true });
 });
 
 // GET /api/saved — paginated list of saved pastes the user currently has access to
-app.get("/", requireAuth, (c) => {
+app.get("/", requireAuth, async (c) => {
   const me = c.var.user;
   const page   = Math.max(1, Number(c.req.query("page")  ?? 1));
   const limit  = Math.min(Number(c.req.query("limit") ?? 20), 100);
@@ -105,7 +105,7 @@ app.get("/", requireAuth, (c) => {
     owner_display: string | null;
   };
 
-  const pastes = db
+  const pastes = await db
     .query<SavedRow, [number, number, number, string | null, string | null, string | null, number, number]>(
       `SELECT
          sp.saved_at,
@@ -128,7 +128,7 @@ app.get("/", requireAuth, (c) => {
     )
     .all(me.id, me.id, me.id, filter, filter, filter, limit, offset);
 
-  const { cnt } = db
+  const { cnt } = (await db
     .query<{ cnt: number }, [number, number, number, string | null, string | null, string | null]>(
       `SELECT COUNT(*) AS cnt
        FROM saved_pastes sp
@@ -138,7 +138,7 @@ app.get("/", requireAuth, (c) => {
          AND ${accessFilter}
          AND (? IS NULL OR d.title LIKE ? OR u.handle LIKE ?)`
     )
-    .get(me.id, me.id, me.id, filter, filter, filter)!;
+    .get(me.id, me.id, me.id, filter, filter, filter))!;
 
   return c.json({ pastes, page, limit, total: cnt, has_more: offset + pastes.length < cnt });
 });

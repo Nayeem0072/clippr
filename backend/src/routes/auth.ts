@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
-import { db } from "../db/client";
-import { hashPassword, verifyPassword } from "../lib/password";
-import { signJWT } from "../lib/jwt";
-import { checkRateLimit } from "../lib/rateLimit";
-import { requireAuth } from "../middleware/auth";
-import type { Variables, AuthUser } from "../types";
+import { db } from "../db/client.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+import { signJWT } from "../lib/jwt.js";
+import { checkRateLimit } from "../lib/rateLimit.js";
+import { requireAuth } from "../middleware/auth.js";
+import type { Variables, AuthUser } from "../types/index.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -42,7 +42,7 @@ const getFullUser = db.query<AuthUser, [number]>(
 // POST /api/auth/signup
 app.post("/signup", async (c) => {
   const ip = c.req.header("x-forwarded-for") ?? "unknown";
-  if (isProduction && checkRateLimit(`signup:${ip}`, 3600, 10)) {
+  if (isProduction && await checkRateLimit(`signup:${ip}`, 3600, 10)) {
     return c.json({ error: "Too many signup attempts. Try again later." }, 429);
   }
 
@@ -62,15 +62,15 @@ app.post("/signup", async (c) => {
     return c.json({ error: "Invalid email address" }, 400);
   }
 
-  if (findByEmailOrHandle.get(email, handle)) {
+  if (await findByEmailOrHandle.get(email, handle)) {
     return c.json({ error: "Email or handle already taken" }, 409);
   }
 
   const password_hash = await hashPassword(password);
-  const result = insertUser.run(handle, email, password_hash, display_name ?? null);
+  const result = await insertUser.run(handle, email, password_hash, display_name ?? null);
   const userId = result.lastInsertRowid as number;
 
-  const user = getFullUser.get(userId)!;
+  const user = (await getFullUser.get(userId))!;
   const token = await signJWT({ sub: String(userId), handle });
   setCookieToken(c, token);
 
@@ -88,17 +88,17 @@ app.post("/login", async (c) => {
     return c.json({ error: "email and password are required" }, 400);
   }
 
-  if (checkRateLimit(`login:${email}`, 900, 10)) {
+  if (await checkRateLimit(`login:${email}`, 900, 10)) {
     return c.json({ error: "Too many login attempts. Try again in 15 minutes." }, 429);
   }
 
-  const row = findByEmail.get(email);
+  const row = await findByEmail.get(email);
   if (!row) return c.json({ error: "Invalid credentials" }, 401);
 
   const valid = await verifyPassword(password, row.password_hash);
   if (!valid) return c.json({ error: "Invalid credentials" }, 401);
 
-  const user = getFullUser.get(row.id)!;
+  const user = (await getFullUser.get(row.id))!;
   const token = await signJWT({ sub: String(row.id), handle: row.handle });
   setCookieToken(c, token);
 
@@ -120,7 +120,7 @@ app.get("/me", requireAuth, (c) => {
 app.get("/check-handle", async (c) => {
   const handle = c.req.query("handle");
   if (!handle) return c.json({ error: "handle required" }, 400);
-  const taken = !!db.query("SELECT id FROM users WHERE handle = ? LIMIT 1").get(handle);
+  const taken = !!await db.query("SELECT id FROM users WHERE handle = ? LIMIT 1").get(handle);
   return c.json({ available: !taken });
 });
 

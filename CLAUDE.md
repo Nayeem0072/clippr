@@ -35,20 +35,20 @@ cd backend
 ~/.bun/bin/bun test src/routes/sends.test.ts  # Run a specific test file
 ```
 
-Tests use Bun's built-in test runner (`bun:test`) with in-memory SQLite databases — no server needed. Test files live alongside the source files they cover (`*.test.ts`).
+Tests use Bun's built-in test runner (`bun:test`) — no server needed. Test files live alongside the source files they cover (`*.test.ts`). `bunfig.toml` preloads `src/test/setup.ts`, which points the shared `db` at a fresh, migrated temp SQLite file, so tests never touch the dev DB or Turso. `src/app.test.ts` drives the real Hono app via `app.fetch` (integration); the older `routes/*.test.ts` files build their own in-memory `bun:sqlite` schemas to test SQL in isolation.
 
 **Testing policy**: whenever a backend route is added or modified, a corresponding `*.test.ts` file must be written or updated. Tests should cover:
 - Happy path for each new behaviour
 - Filtering/access-control (wrong user sees nothing)
 - Edge cases (empty results, declined/accepted states, etc.)
 
-### Docker (production)
+### Docker (self-hosted alternative)
 ```bash
 docker compose up -d --build   # Rebuild and restart backend (data volume persists)
 docker compose logs -f backend # Tail logs
 ```
 
-> **Important**: The production `.env` on the VM must set `DB_PATH=/data/pastebin.db` (not `./pastebin.db`). Using a relative path bypasses the mounted volume and the DB will be lost on every rebuild.
+> **Important**: When self-hosting with Docker, `.env` must set `DB_PATH=/data/pastebin.db` (not `./pastebin.db`). Using a relative path bypasses the mounted volume and the DB will be lost on every rebuild.
 
 ## Workflow
 
@@ -67,10 +67,12 @@ Bug fixes can be committed directly to the current branch (or a `fix/` branch if
 This is a monorepo with a Bun workspace (`package.json` at root) containing `backend/` and `frontend/`.
 
 ### Backend (`backend/src/`)
-- **Runtime**: Bun + Hono framework
-- **Database**: SQLite via `bun:sqlite` — file path set by `DB_PATH` env var. Dev default: `./pastebin.db`. Production (Docker) must explicitly set `DB_PATH=/data/pastebin.db` in `.env` to write into the mounted volume.
+- **Runtime**: Hono. Runs on Bun locally/Docker (`src/index.ts`) and on Vercel's Node.js runtime in production (`api/index.ts` → `src/app.ts`). Runtime code must stay **Node-compatible**: no `Bun.*` APIs or `bun:*` imports outside tests, and relative imports use explicit `.js` extensions (the packages are `"type": "module"`).
+- **Database**: libSQL via `@libsql/client` (`src/db/client.ts`). `TURSO_DATABASE_URL` (+ `TURSO_AUTH_TOKEN`) selects Turso in production; otherwise `DB_PATH` (or the repo-root `pastebin.db`) is used as a local `file:` DB. All queries are **async**: `await db.query<Row, Args>(sql).get/all/run(...)`. Use `await db.transaction(async () => { ... })` for multi-statement writes — queries awaited inside the callback run on the transaction automatically (AsyncLocalStorage).
+- **App vs server**: `src/app.ts` builds the Hono app (no side effects, no migrations). `src/index.ts` is the Bun server; `api/index.ts` (repo root) is the Vercel function.
 - **Auth**: JWT stored as httpOnly cookie **and** returned in response body as `token`. All API clients send it as `Authorization: Bearer <token>`. Both `requireAuth` and `optionalAuth` middlewares accept either cookie or Bearer header.
-- **Migrations**: Auto-run on startup from `src/db/migrations/*.sql` (tracked in `_migrations` table)
+- **Migrations**: `src/db/migrations/*.sql`, tracked in `_migrations`. Run by `bun run migrate` — which `bun run dev`, `bun run start` (Docker) and the Vercel build command all call first. They do **not** run at request time.
+- **OG images**: `@resvg/resvg-js` with fonts bundled in `backend/assets/fonts/` (`loadSystemFonts: false`) — serverless hosts have no system fonts. `vercel.json` ships them via `includeFiles`.
 - **Search**: SQLite FTS5 virtual table (`documents_fts`) with Porter stemmer, kept in sync via triggers
 - **Syntax highlighting**: `shiki` runs server-side at paste creation time, result stored as `highlighted_html`
 - **Rate limiting**: In-memory via `rate_limit_log` table — no external cache needed
@@ -97,6 +99,14 @@ All UI work must be mobile-friendly. Breakpoint is `768px`. On mobile:
 - New components should use `flexWrap`, avoid fixed widths, and test at 375px width
 
 ### Deployment
-- **Frontend**: Vercel — set `VITE_API_URL` to the backend URL
-- **Backend**: Docker on VM — `docker-compose.yml` at repo root, SQLite stored in named volume `db_data`
-- **CORS**: Backend `FRONTEND_URL` env var must match the Vercel deployment URL exactly
+- **Vercel (everything)**: one project with the **repo root** as its root directory. Root `vercel.json` installs with Bun, runs migrations, builds `frontend/` into `frontend/dist`, and rewrites `/api/*` to the single function `api/index.ts`. Bot user-agents on `/docs/:slug` and `/join/:code` are rewritten to the same-origin `/api/og/meta/...` routes.
+- **Env vars (Vercel)**: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `JWT_SECRET`, `FRONTEND_URL` (production URL — used for OG meta links and CORS), `NODE_ENV=production`. Leave `VITE_API_URL` **unset** so the frontend calls same-origin `/api`.
+- **Database**: Turso (libSQL). FTS5 + triggers work unchanged. Databases `clippr` (prod) and `clippr-preview` live in AWS `ap-south-1` (Mumbai); `vercel.json` pins functions to `bom1` (Mumbai) to keep query latency low — change both together if you move regions. Turso rejects connection PRAGMAs (`journal_mode`, `synchronous`, `busy_timeout`) in migrations; only `foreign_keys` is allowed (guarded by a test).
+- **Preview deployments**: migrations run during *every* Vercel build. Scope the production `TURSO_*` vars to the **Production** environment only and give **Preview** its own Turso database, so a branch's migration never touches production data before merge.
+- **Self-hosted alternative**: Docker — `docker-compose.yml` at repo root, SQLite file in named volume `db_data` (`DB_PATH=/data/pastebin.db`).
+
+### First-time Turso setup (fresh database, no data to import)
+1. `turso db create pastepad`, then `turso db tokens create pastepad`.
+2. Set the env vars above on Vercel and deploy. The build runs `bun run migrate`, which creates the schema on the empty database.
+3. Verify in `turso db shell pastepad`: `SELECT name FROM _migrations;` lists 001–006, and **`PRAGMA foreign_keys;` returns 1**. The schema relies on `ON DELETE CASCADE`, so if it returns 0, fix FK enforcement before going live.
+4. Smoke test: signup/login, create a paste, search, OG image, group join.

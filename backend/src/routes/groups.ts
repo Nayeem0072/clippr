@@ -1,15 +1,15 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { requireAuth } from "../middleware/auth";
-import { optionalAuth } from "../middleware/optionalAuth";
-import { generateInviteCode, isInviteExpired, isInviteExhausted } from "../lib/inviteCode";
-import type { Variables, AuthUser, Group, GroupMember } from "../types";
+import { db } from "../db/client.js";
+import { requireAuth } from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
+import { generateInviteCode, isInviteExpired, isInviteExhausted } from "../lib/inviteCode.js";
+import type { Variables, AuthUser, Group, GroupMember } from "../types/index.js";
 
 type Vars = Variables & { user: AuthUser | null };
 const app = new Hono<{ Variables: Vars }>();
 
-function getMemberRole(groupId: number, userId: number): GroupMember["role"] | null {
-  const row = db
+async function getMemberRole(groupId: number, userId: number): Promise<GroupMember["role"] | null> {
+  const row = await db
     .query<{ role: GroupMember["role"] }, [number, number]>(
       "SELECT role FROM group_members WHERE group_id = ? AND user_id = ?"
     )
@@ -28,11 +28,11 @@ app.patch("/handle-invites/:inviteId", requireAuth, (c) => {
   const me = c.var.user!;
   const inviteId = Number(c.req.param("inviteId"));
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { action } = b ?? {};
     if (!["accept", "decline"].includes(action)) return c.json({ error: "action must be accept or decline" }, 400);
 
-    const invite = db
+    const invite = await db
       .query<{ id: number; group_id: number; status: string }, [number, number]>(
         "SELECT id, group_id, status FROM group_handle_invites WHERE id = ? AND invitee_id = ?"
       )
@@ -40,23 +40,23 @@ app.patch("/handle-invites/:inviteId", requireAuth, (c) => {
     if (!invite) return c.json({ error: "Invite not found" }, 404);
     if (invite.status !== "pending") return c.json({ error: "Invite is no longer pending" }, 400);
 
-    db.transaction(() => {
+    await db.transaction(async () => {
       const newStatus = action === "accept" ? "accepted" : "declined";
-      db.prepare("UPDATE group_handle_invites SET status = ? WHERE id = ?").run(newStatus, invite.id);
+      await db.prepare("UPDATE group_handle_invites SET status = ? WHERE id = ?").run(newStatus, invite.id);
       if (action === "accept") {
-        db.prepare("INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(invite.group_id, me.id);
+        await db.prepare("INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(invite.group_id, me.id);
       }
-    })();
+    });
 
     return c.json({ ok: true });
   });
 });
 
 // PATCH /api/groups/handle-invites/:inviteId/read — mark invite notification as read (invitee)
-app.patch("/handle-invites/:inviteId/read", requireAuth, (c) => {
+app.patch("/handle-invites/:inviteId/read", requireAuth, async (c) => {
   const me = c.var.user!;
   const inviteId = Number(c.req.param("inviteId"));
-  db.prepare(
+  await db.prepare(
     "UPDATE group_handle_invites SET read_at = unixepoch() WHERE id = ? AND invitee_id = ? AND read_at IS NULL"
   ).run(inviteId, me.id);
   return c.json({ ok: true });
@@ -65,9 +65,9 @@ app.patch("/handle-invites/:inviteId/read", requireAuth, (c) => {
 // ─── Join-code routes ───
 
 // GET /api/groups/join/:code — preview invite
-app.get("/join/:code", optionalAuth, (c) => {
+app.get("/join/:code", optionalAuth, async (c) => {
   const { code } = c.req.param();
-  const invite = db
+  const invite = await db
     .query<
       { id: number; group_id: number; max_uses: number | null; use_count: number; expires_at: number | null },
       [string]
@@ -80,16 +80,16 @@ app.get("/join/:code", optionalAuth, (c) => {
   if (isInviteExpired(invite.expires_at)) return c.json({ error: "This invite has expired" }, 410);
   if (isInviteExhausted(invite.use_count, invite.max_uses)) return c.json({ error: "This invite has reached its limit" }, 410);
 
-  const group = db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
+  const group = await db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
   return c.json({ group, invite: { expires_at: invite.expires_at, max_uses: invite.max_uses, use_count: invite.use_count } });
 });
 
 // POST /api/groups/join/:code — join via invite code
-app.post("/join/:code", requireAuth, (c) => {
+app.post("/join/:code", requireAuth, async (c) => {
   const me = c.var.user!;
   const { code } = c.req.param();
 
-  const invite = db
+  const invite = await db
     .query<
       { id: number; group_id: number; max_uses: number | null; use_count: number; expires_at: number | null },
       [string]
@@ -102,42 +102,42 @@ app.post("/join/:code", requireAuth, (c) => {
   if (isInviteExpired(invite.expires_at)) return c.json({ error: "This invite has expired" }, 410);
   if (isInviteExhausted(invite.use_count, invite.max_uses)) return c.json({ error: "This invite has reached its limit" }, 410);
 
-  const existing = db
+  const existing = await db
     .query<{ user_id: number }, [number, number]>(
       "SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?"
     )
     .get(invite.group_id, me.id);
   if (existing) {
-    const group = db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
+    const group = await db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
     return c.json({ group, already_member: true });
   }
 
-  db.transaction(() => {
-    db.prepare("INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(invite.group_id, me.id);
-    db.prepare("UPDATE group_code_invites SET use_count = use_count + 1 WHERE id = ?").run(invite.id);
-  })();
+  await db.transaction(async () => {
+    await db.prepare("INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(invite.group_id, me.id);
+    await db.prepare("UPDATE group_code_invites SET use_count = use_count + 1 WHERE id = ?").run(invite.id);
+  });
 
-  const group = db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
+  const group = await db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(invite.group_id);
   return c.json({ group });
 });
 
 // ─── Search ───
 
 // GET /api/groups/search?q=
-app.get("/search", optionalAuth, (c) => {
+app.get("/search", optionalAuth, async (c) => {
   const q = (c.req.query("q") ?? "").trim();
   const limit = Math.min(Number(c.req.query("limit") ?? 20), 50);
 
   let groups;
   if (q) {
     const pattern = `%${q}%`;
-    groups = db
+    groups = await db
       .query<Group, [string, string, number]>(
         "SELECT * FROM groups WHERE visibility = 'public' AND (name LIKE ? OR slug LIKE ?) ORDER BY name LIMIT ?"
       )
       .all(pattern, pattern, limit);
   } else {
-    groups = db
+    groups = await db
       .query<Group, [number]>(
         "SELECT * FROM groups WHERE visibility = 'public' ORDER BY created_at DESC LIMIT ?"
       )
@@ -152,31 +152,31 @@ app.get("/search", optionalAuth, (c) => {
 app.post("/", requireAuth, (c) => {
   const me = c.var.user!;
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { slug, name, description, visibility = "public" } = b ?? {};
     if (!slug || !name) return c.json({ error: "slug and name are required" }, 400);
     if (!/^[a-z0-9-]{2,64}$/.test(slug)) return c.json({ error: "Invalid group slug" }, 400);
     if (!["public", "private"].includes(visibility)) return c.json({ error: "Invalid visibility" }, 400);
 
-    const existing = db.query("SELECT id FROM groups WHERE slug = ?").get(slug);
+    const existing = await db.query("SELECT id FROM groups WHERE slug = ?").get(slug);
     if (existing) return c.json({ error: "Group slug already taken" }, 409);
 
-    const result = db.prepare(
+    const result = await db.prepare(
       "INSERT INTO groups (slug, name, description, visibility, owner_id) VALUES (?, ?, ?, ?, ?)"
     ).run(slug, name, description ?? null, visibility, me.id);
 
     const groupId = result.lastInsertRowid as number;
-    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'owner')").run(groupId, me.id);
+    await db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'owner')").run(groupId, me.id);
 
-    const group = db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(groupId);
+    const group = await db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(groupId);
     return c.json({ group }, 201);
   });
 });
 
 // GET /api/groups — list user's groups
-app.get("/", requireAuth, (c) => {
+app.get("/", requireAuth, async (c) => {
   const me = c.var.user!;
-  const groups = db
+  const groups = await db
     .query<Group & { role: string }, [number]>(
       `SELECT g.*, gm.role FROM groups g
        JOIN group_members gm ON g.id = gm.group_id
@@ -188,17 +188,17 @@ app.get("/", requireAuth, (c) => {
 });
 
 // GET /api/groups/:slug
-app.get("/:slug", optionalAuth, (c) => {
+app.get("/:slug", optionalAuth, async (c) => {
   const { slug } = c.req.param();
   const me = c.var.user;
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = me ? getMemberRole(group.id, me.id) : null;
+  const role = me ? await getMemberRole(group.id, me.id) : null;
   if (group.visibility === "private" && !role) return c.json({ error: "Not found" }, 404);
 
-  const memberCount = (db.query<{ cnt: number }, [number]>(
+  const memberCount = (await db.query<{ cnt: number }, [number]>(
     "SELECT COUNT(*) as cnt FROM group_members WHERE group_id = ?"
   ).get(group.id))!.cnt;
 
@@ -206,18 +206,18 @@ app.get("/:slug", optionalAuth, (c) => {
 });
 
 // PATCH /api/groups/:slug
-app.patch("/:slug", requireAuth, (c) => {
+app.patch("/:slug", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { name, description, visibility } = b ?? {};
     const updates: string[] = [];
     const values: (string | null)[] = [];
@@ -232,34 +232,34 @@ app.patch("/:slug", requireAuth, (c) => {
     if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
     updates.push("updated_at = unixepoch()");
 
-    db.prepare(`UPDATE groups SET ${updates.join(", ")} WHERE id = ?`).run(...values, group.id);
-    const updated = db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(group.id);
+    await db.prepare(`UPDATE groups SET ${updates.join(", ")} WHERE id = ?`).run(...values, group.id);
+    const updated = await db.query<Group, [number]>("SELECT * FROM groups WHERE id = ?").get(group.id);
     return c.json({ group: updated });
   });
 });
 
 // DELETE /api/groups/:slug
-app.delete("/:slug", requireAuth, (c) => {
+app.delete("/:slug", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
   if (group.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
-  db.prepare("DELETE FROM groups WHERE id = ?").run(group.id);
+  await db.prepare("DELETE FROM groups WHERE id = ?").run(group.id);
   return c.json({ ok: true });
 });
 
 // GET /api/groups/:slug/documents
-app.get("/:slug/documents", optionalAuth, (c) => {
+app.get("/:slug/documents", optionalAuth, async (c) => {
   const { slug } = c.req.param();
   const me = c.var.user;
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = me ? getMemberRole(group.id, me.id) : null;
+  const role = me ? await getMemberRole(group.id, me.id) : null;
   if (group.visibility === "private" && !role) return c.json({ error: "Not found" }, 404);
 
   const limit = Math.min(Number(c.req.query("limit") ?? 30), 100);
@@ -269,7 +269,7 @@ app.get("/:slug/documents", optionalAuth, (c) => {
   const privacy = role ? ["public", "group"] : ["public"];
   const placeholders = privacy.map(() => "?").join(", ");
 
-  const docs = db
+  const docs = await db
     .query<
       { slug: string; title: string; language: string; privacy: string; owner_id: number; owner_handle: string; created_at: number },
       any[]
@@ -287,17 +287,17 @@ app.get("/:slug/documents", optionalAuth, (c) => {
 });
 
 // GET /api/groups/:slug/members
-app.get("/:slug/members", requireAuth, (c) => {
+app.get("/:slug/members", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!role) return c.json({ error: "Forbidden" }, 403);
 
-  const members = db
+  const members = await db
     .query<
       { id: number; handle: string; display_name: string | null; avatar_url: string | null; role: string; joined_at: number },
       [number]
@@ -313,84 +313,84 @@ app.get("/:slug/members", requireAuth, (c) => {
 });
 
 // PATCH /api/groups/:slug/members/:userId
-app.patch("/:slug/members/:userId", requireAuth, (c) => {
+app.patch("/:slug/members/:userId", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug, userId } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const myRole = getMemberRole(group.id, me.id);
+  const myRole = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(myRole)) return c.json({ error: "Forbidden" }, 403);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { role } = b ?? {};
     if (!["admin", "member"].includes(role)) return c.json({ error: "role must be admin or member" }, 400);
 
-    const targetRole = getMemberRole(group.id, Number(userId));
+    const targetRole = await getMemberRole(group.id, Number(userId));
     if (!targetRole) return c.json({ error: "User is not a member" }, 404);
     if (targetRole === "owner") return c.json({ error: "Cannot change owner's role" }, 403);
 
-    db.prepare("UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?").run(role, group.id, Number(userId));
+    await db.prepare("UPDATE group_members SET role = ? WHERE group_id = ? AND user_id = ?").run(role, group.id, Number(userId));
     return c.json({ ok: true });
   });
 });
 
 // DELETE /api/groups/:slug/members/:userId
-app.delete("/:slug/members/:userId", requireAuth, (c) => {
+app.delete("/:slug/members/:userId", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug, userId } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const myRole = getMemberRole(group.id, me.id);
+  const myRole = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(myRole)) return c.json({ error: "Forbidden" }, 403);
 
-  const targetRole = getMemberRole(group.id, Number(userId));
+  const targetRole = await getMemberRole(group.id, Number(userId));
   if (!targetRole) return c.json({ error: "User is not a member" }, 404);
   if (targetRole === "owner") return c.json({ error: "Cannot remove the owner" }, 403);
 
-  db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(group.id, Number(userId));
+  await db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(group.id, Number(userId));
   return c.json({ ok: true });
 });
 
 // POST /api/groups/:slug/leave
-app.post("/:slug/leave", requireAuth, (c) => {
+app.post("/:slug/leave", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!role) return c.json({ error: "You are not a member" }, 400);
   if (role === "owner") return c.json({ error: "Transfer ownership before leaving" }, 400);
 
-  db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(group.id, me.id);
+  await db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(group.id, me.id);
   return c.json({ ok: true });
 });
 
 // ─── Code-based invites (existing system, kept intact) ───
 
 // POST /api/groups/:slug/invites
-app.post("/:slug/invites", requireAuth, (c) => {
+app.post("/:slug/invites", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { max_uses, expires_at } = b ?? {};
     const code = generateInviteCode();
 
-    db.prepare(
+    await db.prepare(
       "INSERT INTO group_code_invites (group_id, code, created_by, max_uses, expires_at) VALUES (?, ?, ?, ?, ?)"
     ).run(group.id, code, me.id, max_uses ?? null, expires_at ?? null);
 
@@ -399,17 +399,17 @@ app.post("/:slug/invites", requireAuth, (c) => {
 });
 
 // GET /api/groups/:slug/invites
-app.get("/:slug/invites", requireAuth, (c) => {
+app.get("/:slug/invites", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
-  const invites = db
+  const invites = await db
     .query<
       { id: number; code: string; max_uses: number | null; use_count: number; expires_at: number | null; created_at: number; created_by_handle: string },
       [number]
@@ -425,49 +425,49 @@ app.get("/:slug/invites", requireAuth, (c) => {
 });
 
 // DELETE /api/groups/:slug/invites/:code
-app.delete("/:slug/invites/:code", requireAuth, (c) => {
+app.delete("/:slug/invites/:code", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug, code } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
-  db.prepare("DELETE FROM group_code_invites WHERE code = ? AND group_id = ?").run(code, group.id);
+  await db.prepare("DELETE FROM group_code_invites WHERE code = ? AND group_id = ?").run(code, group.id);
   return c.json({ ok: true });
 });
 
 // ─── Handle-based invites ───
 
 // POST /api/groups/:slug/handle-invites — send invite by handle
-app.post("/:slug/handle-invites", requireAuth, (c) => {
+app.post("/:slug/handle-invites", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { handle, message } = b ?? {};
     if (!handle) return c.json({ error: "handle is required" }, 400);
 
-    const invitee = db
+    const invitee = await db
       .query<{ id: number; handle: string }, [string]>("SELECT id, handle FROM users WHERE handle = ?")
       .get(handle);
     if (!invitee) return c.json({ error: "User not found" }, 404);
 
     if (invitee.id === me.id) return c.json({ error: "Cannot invite yourself" }, 400);
 
-    const alreadyMember = getMemberRole(group.id, invitee.id);
+    const alreadyMember = await getMemberRole(group.id, invitee.id);
     if (alreadyMember) return c.json({ error: "User is already a member" }, 400);
 
-    const existing = db
+    const existing = await db
       .query<{ id: number; status: string }, [number, number]>(
         "SELECT id, status FROM group_handle_invites WHERE group_id = ? AND invitee_id = ?"
       )
@@ -478,13 +478,13 @@ app.post("/:slug/handle-invites", requireAuth, (c) => {
         return c.json({ error: "This user already has a pending invite to this group" }, 409);
       }
       // Previous invite was declined or accepted — reset it so it appears as a new invite
-      db.prepare(
+      await db.prepare(
         "UPDATE group_handle_invites SET status='pending', inviter_id=?, message=?, read_at=NULL, created_at=unixepoch() WHERE id=?"
       ).run(me.id, message ?? null, existing.id);
       return c.json({ invite_id: existing.id, invitee_handle: invitee.handle }, 201);
     }
 
-    const result = db.prepare(
+    const result = await db.prepare(
       "INSERT INTO group_handle_invites (group_id, inviter_id, invitee_id, message) VALUES (?, ?, ?, ?)"
     ).run(group.id, me.id, invitee.id, message ?? null);
     return c.json({ invite_id: result.lastInsertRowid, invitee_handle: invitee.handle }, 201);
@@ -492,17 +492,17 @@ app.post("/:slug/handle-invites", requireAuth, (c) => {
 });
 
 // GET /api/groups/:slug/handle-invites — list pending handle invites
-app.get("/:slug/handle-invites", requireAuth, (c) => {
+app.get("/:slug/handle-invites", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
-  const invites = db
+  const invites = await db
     .query<
       { id: number; message: string | null; created_at: number; invitee_handle: string; invitee_display_name: string | null; inviter_handle: string },
       [number]
@@ -522,48 +522,48 @@ app.get("/:slug/handle-invites", requireAuth, (c) => {
 });
 
 // DELETE /api/groups/:slug/handle-invites/:id — cancel a pending handle invite
-app.delete("/:slug/handle-invites/:id", requireAuth, (c) => {
+app.delete("/:slug/handle-invites/:id", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
   const inviteId = Number(c.req.param("id"));
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
-  const invite = db
+  const invite = await db
     .query<{ id: number }, [number, number]>(
       "SELECT id FROM group_handle_invites WHERE id = ? AND group_id = ? AND status = 'pending'"
     )
     .get(inviteId, group.id);
   if (!invite) return c.json({ error: "Invite not found or already resolved" }, 404);
 
-  db.prepare("DELETE FROM group_handle_invites WHERE id = ?").run(inviteId);
+  await db.prepare("DELETE FROM group_handle_invites WHERE id = ?").run(inviteId);
   return c.json({ ok: true });
 });
 
 // ─── Join requests ───
 
 // POST /api/groups/:slug/requests
-app.post("/:slug/requests", requireAuth, (c) => {
+app.post("/:slug/requests", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
   if (group.visibility === "private") return c.json({ error: "This group is private" }, 403);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (role) return c.json({ error: "You are already a member" }, 400);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { message } = b ?? {};
     try {
-      db.prepare(
+      await db.prepare(
         "INSERT INTO group_join_requests (group_id, user_id, message) VALUES (?, ?, ?)"
       ).run(group.id, me.id, message ?? null);
     } catch (e: any) {
@@ -577,18 +577,18 @@ app.post("/:slug/requests", requireAuth, (c) => {
 });
 
 // GET /api/groups/:slug/requests
-app.get("/:slug/requests", requireAuth, (c) => {
+app.get("/:slug/requests", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
   const status = c.req.query("status") ?? "pending";
-  const requests = db
+  const requests = await db
     .query<
       { id: number; message: string | null; status: string; created_at: number; handle: string; display_name: string | null; avatar_url: string | null },
       [number, string]
@@ -604,22 +604,22 @@ app.get("/:slug/requests", requireAuth, (c) => {
 });
 
 // PATCH /api/groups/:slug/requests/:requestId
-app.patch("/:slug/requests/:requestId", requireAuth, (c) => {
+app.patch("/:slug/requests/:requestId", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug, requestId } = c.req.param();
 
-  const group = db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
+  const group = await db.query<Group, [string]>("SELECT * FROM groups WHERE slug = ?").get(slug);
   if (!group) return c.json({ error: "Not found" }, 404);
 
-  const role = getMemberRole(group.id, me.id);
+  const role = await getMemberRole(group.id, me.id);
   if (!isAdminOrAbove(role)) return c.json({ error: "Forbidden" }, 403);
 
   const body = c.req.json();
-  return body.then((b: any) => {
+  return body.then(async (b: any) => {
     const { action } = b ?? {};
     if (!["approve", "reject"].includes(action)) return c.json({ error: "action must be approve or reject" }, 400);
 
-    const request = db
+    const request = await db
       .query<{ id: number; user_id: number; status: string }, [number, number]>(
         "SELECT id, user_id, status FROM group_join_requests WHERE id = ? AND group_id = ?"
       )
@@ -627,18 +627,18 @@ app.patch("/:slug/requests/:requestId", requireAuth, (c) => {
     if (!request) return c.json({ error: "Request not found" }, 404);
     if (request.status !== "pending") return c.json({ error: "Request is no longer pending" }, 400);
 
-    db.transaction(() => {
+    await db.transaction(async () => {
       const newStatus = action === "approve" ? "approved" : "rejected";
-      db.prepare(
+      await db.prepare(
         "UPDATE group_join_requests SET status = ?, reviewed_by = ?, updated_at = unixepoch() WHERE id = ?"
       ).run(newStatus, me.id, request.id);
 
       if (action === "approve") {
-        db.prepare(
+        await db.prepare(
           "INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')"
         ).run(group.id, request.user_id);
       }
-    })();
+    });
 
     return c.json({ ok: true });
   });

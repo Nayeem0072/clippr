@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { requireAuth } from "../middleware/auth";
-import { optionalAuth } from "../middleware/optionalAuth";
-import { generateSlug } from "../lib/slug";
-import { highlightCode } from "../lib/highlight";
-import { canViewDoc } from "../lib/docAccess";
-import type { Variables, AuthUser, Document } from "../types";
+import { db } from "../db/client.js";
+import { requireAuth } from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
+import { generateSlug } from "../lib/slug.js";
+import { highlightCode } from "../lib/highlight.js";
+import { canViewDoc } from "../lib/docAccess.js";
+import type { Variables, AuthUser, Document } from "../types/index.js";
 
 type Vars = Variables & { user: AuthUser | null };
 const app = new Hono<{ Variables: Vars }>();
@@ -23,7 +23,7 @@ app.post("/", requireAuth, async (c) => {
 
   if (privacy === "group") {
     if (!group_id) return c.json({ error: "group_id required for group privacy" }, 400);
-    const member = db
+    const member = await db
       .query<{ user_id: number }, [number, number]>(
         "SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?"
       )
@@ -31,10 +31,10 @@ app.post("/", requireAuth, async (c) => {
     if (!member) return c.json({ error: "You are not a member of that group" }, 403);
   }
 
-  const slug = generateSlug();
+  const slug = await generateSlug();
   const highlighted_html = await highlightCode(content, language);
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO documents (slug, title, content, language, highlighted_html, privacy, group_id, owner_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(slug, title ?? "Untitled", content, language, highlighted_html, privacy, group_id ?? null, me.id);
@@ -43,13 +43,13 @@ app.post("/", requireAuth, async (c) => {
 });
 
 // GET /api/documents — list own docs
-app.get("/", requireAuth, (c) => {
+app.get("/", requireAuth, async (c) => {
   const me = c.var.user!;
   const page = Number(c.req.query("page") ?? 1);
   const limit = Math.min(Number(c.req.query("limit") ?? 20), 100);
   const offset = (page - 1) * limit;
 
-  const docs = db
+  const docs = await db
     .query<
       { slug: string; title: string; language: string; privacy: string; group_id: number | null; created_at: number; updated_at: number },
       [number, number, number]
@@ -58,7 +58,7 @@ app.get("/", requireAuth, (c) => {
     )
     .all(me.id, limit, offset);
 
-  const total = (db.query<{ cnt: number }, [number]>(
+  const total = (await db.query<{ cnt: number }, [number]>(
     "SELECT COUNT(*) as cnt FROM documents WHERE owner_id = ?"
   ).get(me.id))!.cnt;
 
@@ -66,27 +66,27 @@ app.get("/", requireAuth, (c) => {
 });
 
 // GET /api/documents/:slug
-app.get("/:slug", optionalAuth, (c) => {
+app.get("/:slug", optionalAuth, async (c) => {
   const { slug } = c.req.param();
   const me = c.var.user;
 
-  const doc = db.query<Document, [string]>(
+  const doc = await db.query<Document, [string]>(
     "SELECT * FROM documents WHERE slug = ?"
   ).get(slug);
 
   if (!doc) return c.json({ error: "Not found" }, 404);
 
-  if (!canViewDoc(doc, me?.id ?? null)) {
+  if (!await canViewDoc(doc, me?.id ?? null)) {
     return c.json({ error: "Forbidden" }, 403);
   }
 
   if (doc.privacy === "public") {
-    db.prepare("UPDATE documents SET view_count = view_count + 1 WHERE id = ?").run(doc.id);
-    db.prepare("INSERT INTO document_views (doc_id) VALUES (?)").run(doc.id);
+    await db.prepare("UPDATE documents SET view_count = view_count + 1 WHERE id = ?").run(doc.id);
+    await db.prepare("INSERT INTO document_views (doc_id) VALUES (?)").run(doc.id);
   }
 
   // Attach owner info
-  const owner = db.query<{ handle: string; display_name: string | null }, [number]>(
+  const owner = await db.query<{ handle: string; display_name: string | null }, [number]>(
     "SELECT handle, display_name FROM users WHERE id = ?"
   ).get(doc.owner_id);
 
@@ -98,7 +98,7 @@ app.patch("/:slug", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const doc = db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+  const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
   if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
@@ -129,33 +129,33 @@ app.patch("/:slug", requireAuth, async (c) => {
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
   updates.push("updated_at = unixepoch()");
 
-  db.prepare(`UPDATE documents SET ${updates.join(", ")} WHERE slug = ?`).run(...values, slug);
+  await db.prepare(`UPDATE documents SET ${updates.join(", ")} WHERE slug = ?`).run(...values, slug);
 
-  const updated = db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+  const updated = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
   return c.json({ doc: updated });
 });
 
 // DELETE /api/documents/:slug
-app.delete("/:slug", requireAuth, (c) => {
+app.delete("/:slug", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const doc = db.query<{ id: number; owner_id: number }, [string]>(
+  const doc = await db.query<{ id: number; owner_id: number }, [string]>(
     "SELECT id, owner_id FROM documents WHERE slug = ?"
   ).get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
   if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
-  db.prepare("DELETE FROM documents WHERE slug = ?").run(slug);
+  await db.prepare("DELETE FROM documents WHERE slug = ?").run(slug);
   return c.json({ ok: true });
 });
 
 // POST /api/documents/:slug/shares
-app.post("/:slug/shares", requireAuth, (c) => {
+app.post("/:slug/shares", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const doc = db.query<{ id: number; owner_id: number }, [string]>(
+  const doc = await db.query<{ id: number; owner_id: number }, [string]>(
     "SELECT id, owner_id FROM documents WHERE slug = ?"
   ).get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
@@ -166,7 +166,7 @@ app.post("/:slug/shares", requireAuth, (c) => {
     const { handle_or_email } = b ?? {};
     if (!handle_or_email) return c.json({ error: "handle_or_email is required" }, 400);
 
-    const target = db
+    const target = await db
       .query<{ id: number; handle: string; display_name: string | null }, [string, string]>(
         "SELECT id, handle, display_name FROM users WHERE handle = ? OR email = ? LIMIT 1"
       )
@@ -174,7 +174,7 @@ app.post("/:slug/shares", requireAuth, (c) => {
     if (!target) return c.json({ error: "User not found" }, 404);
     if (target.id === me.id) return c.json({ error: "Cannot share with yourself" }, 400);
 
-    db.prepare(
+    await db.prepare(
       "INSERT OR IGNORE INTO document_shares (doc_id, user_id, shared_by) VALUES (?, ?, ?)"
     ).run(doc.id, target.id, me.id);
 
@@ -183,17 +183,17 @@ app.post("/:slug/shares", requireAuth, (c) => {
 });
 
 // GET /api/documents/:slug/shares
-app.get("/:slug/shares", requireAuth, (c) => {
+app.get("/:slug/shares", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug } = c.req.param();
 
-  const doc = db.query<{ id: number; owner_id: number }, [string]>(
+  const doc = await db.query<{ id: number; owner_id: number }, [string]>(
     "SELECT id, owner_id FROM documents WHERE slug = ?"
   ).get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
   if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
-  const shares = db
+  const shares = await db
     .query<
       { id: number; handle: string; display_name: string | null; shared_at: number },
       [number]
@@ -208,17 +208,17 @@ app.get("/:slug/shares", requireAuth, (c) => {
 });
 
 // DELETE /api/documents/:slug/shares/:userId
-app.delete("/:slug/shares/:userId", requireAuth, (c) => {
+app.delete("/:slug/shares/:userId", requireAuth, async (c) => {
   const me = c.var.user!;
   const { slug, userId } = c.req.param();
 
-  const doc = db.query<{ id: number; owner_id: number }, [string]>(
+  const doc = await db.query<{ id: number; owner_id: number }, [string]>(
     "SELECT id, owner_id FROM documents WHERE slug = ?"
   ).get(slug);
   if (!doc) return c.json({ error: "Not found" }, 404);
   if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
 
-  db.prepare("DELETE FROM document_shares WHERE doc_id = ? AND user_id = ?").run(doc.id, Number(userId));
+  await db.prepare("DELETE FROM document_shares WHERE doc_id = ? AND user_id = ?").run(doc.id, Number(userId));
   return c.json({ ok: true });
 });
 

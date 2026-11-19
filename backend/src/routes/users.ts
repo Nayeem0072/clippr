@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { requireAuth } from "../middleware/auth";
-import { optionalAuth } from "../middleware/optionalAuth";
-import { hashPassword, verifyPassword } from "../lib/password";
-import type { Variables, AuthUser } from "../types";
+import { db } from "../db/client.js";
+import { requireAuth } from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+import type { Variables, AuthUser } from "../types/index.js";
 
 const app = new Hono<{ Variables: Variables & { user: AuthUser | null } }>();
 
@@ -19,11 +19,11 @@ const getPublicDocs = db.query<
 );
 
 // GET /api/users/search?q= — prefix search on handle for autocomplete
-app.get("/search", requireAuth, (c) => {
+app.get("/search", requireAuth, async (c) => {
   const q = c.req.query("q") ?? "";
   if (q.length < 1) return c.json({ users: [] });
 
-  const users = db
+  const users = await db
     .query<
       { id: number; handle: string; display_name: string | null },
       [string, string]
@@ -36,11 +36,11 @@ app.get("/search", requireAuth, (c) => {
 });
 
 // GET /api/users/resolve?q=handle_or_email
-app.get("/resolve", requireAuth, (c) => {
+app.get("/resolve", requireAuth, async (c) => {
   const q = c.req.query("q");
   if (!q) return c.json({ error: "q is required" }, 400);
 
-  const user = db
+  const user = await db
     .query<
       { id: number; handle: string; display_name: string | null; avatar_url: string | null },
       [string, string]
@@ -54,9 +54,9 @@ app.get("/resolve", requireAuth, (c) => {
 });
 
 // GET /api/users/:handle
-app.get("/:handle", optionalAuth, (c) => {
+app.get("/:handle", optionalAuth, async (c) => {
   const { handle } = c.req.param();
-  const user = getByHandle.get(handle);
+  const user = await getByHandle.get(handle);
   if (!user) return c.json({ error: "User not found" }, 404);
 
   const me = c.var.user;
@@ -64,7 +64,7 @@ app.get("/:handle", optionalAuth, (c) => {
 
   let docs;
   if (isSelf) {
-    docs = db
+    docs = await db
       .query<
         { slug: string; title: string; language: string; privacy: string; created_at: number },
         [number]
@@ -73,7 +73,7 @@ app.get("/:handle", optionalAuth, (c) => {
       )
       .all(user.id);
   } else {
-    docs = getPublicDocs.all(user.id);
+    docs = await getPublicDocs.all(user.id);
   }
 
   // Don't expose email to others
@@ -100,7 +100,7 @@ app.patch("/me", requireAuth, async (c) => {
   if (new_password) {
     if (!current_password) return c.json({ error: "current_password required to change password" }, 400);
     if (new_password.length < 8) return c.json({ error: "Password must be at least 8 characters" }, 400);
-    const row = db.query<{ password_hash: string }, [number]>(
+    const row = await db.query<{ password_hash: string }, [number]>(
       "SELECT password_hash FROM users WHERE id = ?"
     ).get(me.id);
     const valid = await verifyPassword(current_password, row!.password_hash);
@@ -113,9 +113,9 @@ app.patch("/me", requireAuth, async (c) => {
   if (updates.length === 0) return c.json({ error: "Nothing to update" }, 400);
 
   updates.push("updated_at = unixepoch()");
-  db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...values, me.id);
+  await db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...values, me.id);
 
-  const updated = db.query<AuthUser, [number]>(
+  const updated = await db.query<AuthUser, [number]>(
     "SELECT id, handle, email, display_name, bio, avatar_url, created_at FROM users WHERE id = ?"
   ).get(me.id);
 

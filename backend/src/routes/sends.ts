@@ -1,8 +1,8 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { requireAuth } from "../middleware/auth";
-import { canViewDoc } from "../lib/docAccess";
-import type { Variables, AuthUser, Document } from "../types/index";
+import { db } from "../db/client.js";
+import { requireAuth } from "../middleware/auth.js";
+import { canViewDoc } from "../lib/docAccess.js";
+import type { Variables, AuthUser, Document } from "../types/index.js";
 
 const app = new Hono<{ Variables: Variables }>();
 
@@ -15,13 +15,13 @@ app.post("/", requireAuth, async (c) => {
   if (!doc_slug) return c.json({ error: "doc_slug is required" }, 400);
   if (!handle_or_email) return c.json({ error: "handle_or_email is required" }, 400);
 
-  const doc = db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(doc_slug);
+  const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(doc_slug);
   if (!doc) return c.json({ error: "Document not found" }, 404);
 
-  if (!canViewDoc(doc, me.id)) return c.json({ error: "Forbidden" }, 403);
+  if (!await canViewDoc(doc, me.id)) return c.json({ error: "Forbidden" }, 403);
   if (doc.privacy === "private") return c.json({ error: "Cannot send a private document" }, 400);
 
-  const recipient = db
+  const recipient = await db
     .query<{ id: number; handle: string; display_name: string | null }, [string, string]>(
       "SELECT id, handle, display_name FROM users WHERE handle = ? OR email = ? LIMIT 1"
     )
@@ -30,7 +30,7 @@ app.post("/", requireAuth, async (c) => {
   if (recipient.id === me.id) return c.json({ error: "Cannot send to yourself" }, 400);
 
   if (doc.privacy === "group" && doc.group_id) {
-    const member = db
+    const member = await db
       .query<{ user_id: number }, [number, number]>(
         "SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?"
       )
@@ -40,7 +40,7 @@ app.post("/", requireAuth, async (c) => {
     }
   }
 
-  const result = db
+  const result = await db
     .prepare(
       "INSERT OR IGNORE INTO document_sends (doc_id, sender_id, recipient_id, message) VALUES (?, ?, ?, ?)"
     )
@@ -51,7 +51,7 @@ app.post("/", requireAuth, async (c) => {
 });
 
 // GET /api/sends/inbox — paginated list of docs sent to me
-app.get("/inbox", requireAuth, (c) => {
+app.get("/inbox", requireAuth, async (c) => {
   const me = c.var.user;
   const page = Math.max(1, Number(c.req.query("page") ?? 1));
   const limit = Math.min(Number(c.req.query("limit") ?? 20), 100);
@@ -60,7 +60,7 @@ app.get("/inbox", requireAuth, (c) => {
 
   const filter = q ? `%${q}%` : null;
 
-  const sends = db
+  const sends = await db
     .query<
       {
         send_id: number;
@@ -74,7 +74,7 @@ app.get("/inbox", requireAuth, (c) => {
         sender_handle: string;
         sender_display_name: string | null;
       },
-      [number, string | null, string | null, string | null, string | null, number, number]
+      [number, string | null, string | null, string | null, number, number]
     >(
       `SELECT
          ds.id        AS send_id,
@@ -98,7 +98,7 @@ app.get("/inbox", requireAuth, (c) => {
     .all(me.id, filter, filter, filter, limit, offset);
 
   const total = (
-    db
+    await db
       .query<{ cnt: number }, [number, string | null, string | null, string | null]>(
         `SELECT COUNT(*) AS cnt
          FROM document_sends ds
@@ -114,7 +114,7 @@ app.get("/inbox", requireAuth, (c) => {
 });
 
 // GET /api/sends/notifications — recent notifications for bell dropdown (doc sends + group invites)
-app.get("/notifications", requireAuth, (c) => {
+app.get("/notifications", requireAuth, async (c) => {
   const me = c.var.user;
 
   type NotificationRow = {
@@ -133,7 +133,7 @@ app.get("/notifications", requireAuth, (c) => {
   };
 
   // Split into two queries to work around bun:sqlite's ? binding limitation across UNION ALL
-  const docSends = db
+  const docSends = await db
     .query<NotificationRow, [number]>(
       `SELECT
          ds.id              AS id,
@@ -155,7 +155,7 @@ app.get("/notifications", requireAuth, (c) => {
     )
     .all(me.id);
 
-  const groupInvites = db
+  const groupInvites = await db
     .query<NotificationRow, [number]>(
       `SELECT
          gi.id              AS id,
@@ -189,9 +189,9 @@ app.get("/notifications", requireAuth, (c) => {
 });
 
 // GET /api/sends/unread-count
-app.get("/unread-count", requireAuth, (c) => {
+app.get("/unread-count", requireAuth, async (c) => {
   const me = c.var.user;
-  const { cnt } = db
+  const { cnt } = (await db
     .query<{ cnt: number }, [number, number]>(
       `SELECT (
          SELECT COUNT(*) FROM document_sends WHERE recipient_id = ? AND read_at IS NULL
@@ -199,27 +199,27 @@ app.get("/unread-count", requireAuth, (c) => {
          SELECT COUNT(*) FROM group_handle_invites WHERE invitee_id = ? AND status = 'pending' AND read_at IS NULL
        ) AS cnt`
     )
-    .get(me.id, me.id)!;
+    .get(me.id, me.id))!;
   return c.json({ count: cnt });
 });
 
 // PATCH /api/sends/read-all — mark all as read (doc sends + group invites)
-app.patch("/read-all", requireAuth, (c) => {
+app.patch("/read-all", requireAuth, async (c) => {
   const me = c.var.user;
-  const result = db
+  const result = await db
     .prepare("UPDATE document_sends SET read_at = unixepoch() WHERE recipient_id = ? AND read_at IS NULL")
     .run(me.id);
-  db.prepare(
+  await db.prepare(
     "UPDATE group_handle_invites SET read_at = unixepoch() WHERE invitee_id = ? AND status = 'pending' AND read_at IS NULL"
   ).run(me.id);
   return c.json({ ok: true, updated: result.changes });
 });
 
 // PATCH /api/sends/:sendId/read — mark one as read
-app.patch("/:sendId/read", requireAuth, (c) => {
+app.patch("/:sendId/read", requireAuth, async (c) => {
   const me = c.var.user;
   const sendId = Number(c.req.param("sendId"));
-  db.prepare(
+  await db.prepare(
     "UPDATE document_sends SET read_at = unixepoch() WHERE id = ? AND recipient_id = ? AND read_at IS NULL"
   ).run(sendId, me.id);
   return c.json({ ok: true });

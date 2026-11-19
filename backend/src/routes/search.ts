@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import { db } from "../db/client";
-import { optionalAuth } from "../middleware/optionalAuth";
-import type { AuthUser } from "../types";
+import { db } from "../db/client.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
+import type { AuthUser } from "../types/index.js";
 
 const app = new Hono<{ Variables: { user: AuthUser | null } }>();
 
 // GET /api/search?q=&org=&lang=&page=&limit= (org= accepts a group slug)
-app.get("/", optionalAuth, (c) => {
+app.get("/", optionalAuth, async (c) => {
   const q = c.req.query("q")?.trim();
   if (!q || q.length < 2) return c.json({ error: "q must be at least 2 characters" }, 400);
 
@@ -37,7 +37,7 @@ app.get("/", optionalAuth, (c) => {
 
   let orgFilter = "";
   if (org) {
-    const orgRow = db.query<{ id: number }, [string]>(
+    const orgRow = await db.query<{ id: number }, [string]>(
       "SELECT id FROM groups WHERE slug = ?"
     ).get(org);
     if (orgRow) {
@@ -79,8 +79,8 @@ app.get("/", optionalAuth, (c) => {
   `;
 
   try {
-    const results = db.query(sql).all(...params);
-    const { cnt } = (db.query(countSql).get(...params) as any) ?? { cnt: 0 };
+    const results = await db.query(sql).all(...params);
+    const { cnt } = (await db.query(countSql).get(...params) as any) ?? { cnt: 0 };
     return c.json({ results, total: cnt, page, limit, has_more: offset + results.length < cnt });
   } catch (err: any) {
     // FTS5 syntax error (e.g. bad query) → return empty
