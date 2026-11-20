@@ -20,13 +20,15 @@ interface MuxPaneProps {
   focused: boolean;
   onFocus: () => void;
   onSplit: (side: SplitSide) => void;
+  /** Which splits keep both halves above the minimum pane size. */
+  canSplit: Record<SplitSide, boolean>;
   onClose: () => void;
   onAddHere: () => void;
   onDirtyChange: (paneId: string, dirty: boolean) => void;
 }
 
 /** One pane of the Mux panel: views a paste, and lets its owner edit the content. */
-export function MuxPane({ paneId, slug, focused, onFocus, onSplit, onClose, onAddHere, onDirtyChange }: MuxPaneProps) {
+export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onClose, onAddHere, onDirtyChange }: MuxPaneProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -129,11 +131,12 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, onClose, onAd
     return () => window.removeEventListener("keydown", handler);
   }, [focused, editing]);
 
-  const iconBtn = (label: string, onClick: () => void, icon: React.ReactNode) => (
+  const iconBtn = (label: string, onClick: () => void, icon: React.ReactNode, disabledReason?: string) => (
     <button
       type="button"
-      title={label}
+      title={disabledReason ?? label}
       aria-label={label}
+      disabled={!!disabledReason}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
@@ -194,13 +197,16 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, onClose, onAd
           )}
           <span className="mux-desktop-only" style={{ display: "contents" }}>
             {iconBtn("Split left", () => onSplit("left"),
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4.5a2 2 0 012-2H8v11H3.5a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4.5a2 2 0 012-2H8v11H3.5a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>,
+              canSplit.left ? undefined : "Pane is too narrow to split"
             )}
             {iconBtn("Split right", () => onSplit("right"),
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5h4.5a2 2 0 012 2v7a2 2 0 01-2 2H8z" fill="currentColor" fillOpacity="0.35"/></svg>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5h4.5a2 2 0 012 2v7a2 2 0 01-2 2H8z" fill="currentColor" fillOpacity="0.35"/></svg>,
+              canSplit.right ? undefined : "Pane is too narrow to split"
             )}
             {iconBtn("Split down", () => onSplit("down"),
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13v3.5a2 2 0 01-2 2h-9a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13v3.5a2 2 0 01-2 2h-9a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>,
+              canSplit.down ? undefined : "Pane is too short to split"
             )}
           </span>
           {iconBtn("Close pane", requestClose,

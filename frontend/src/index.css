@@ -310,6 +310,7 @@
 }
 .btn-ghost:hover { color: var(--color-ink); border-color: var(--color-border-hover); background: var(--color-hover-overlay); }
 .btn-ghost:active { transform: scale(0.97); }
+.btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 /* Danger button */
 .btn-danger {
@@ -575,7 +576,8 @@
   color: var(--color-ink-3);
   cursor: pointer;
 }
-.mux-icon-btn:hover { color: var(--color-ink); background: var(--color-hover-overlay); }
+.mux-icon-btn:hover:not(:disabled) { color: var(--color-ink); background: var(--color-hover-overlay); }
+.mux-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .mux-dirty-dot {
   width: 8px;
   height: 8px;

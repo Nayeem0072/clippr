@@ -73,6 +73,7 @@ test.describe("Mux panel", () => {
     const me = await newUser(auth, "muxl");
     const a = await paste.createViaApi(me.token, { title: "Right side", content: "stays right" });
 
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/mux");
     await addViaSlug(page, a);
     await pane(page, a).getByRole("button", { name: "Split left" }).click();
@@ -84,8 +85,11 @@ test.describe("Mux panel", () => {
     expect(leftBox.x).toBeLessThan(rightBox.x);
     expect(Math.abs(leftBox.y - rightBox.y)).toBeLessThan(2);
 
-    // Toolbar button splits the focused (new, empty) pane left again.
-    await page.getByRole("button", { name: "Split left", exact: true }).first().click();
+    // At this width a half-width pane can't split sideways again (min pane width),
+    // but it can still split down.
+    const toolbar = page.locator(".mux-toolbar");
+    await expect(toolbar.getByRole("button", { name: "Split left" })).toBeDisabled();
+    await toolbar.getByRole("button", { name: "Split down" }).click();
     await expect(page.getByTestId("mux-pane")).toHaveCount(3);
     await expect(pane(page, a)).toContainText("stays right");
   });
@@ -142,5 +146,44 @@ test.describe("Mux panel", () => {
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
     expect(overflow).toBe(false);
+  });
+});
+
+test.describe("Mux panel: minimum pane size", () => {
+  test("splitting stops once panes would get too small; dividers can't crush panes", async ({ page, auth }) => {
+    const id = uid();
+    await auth.createAndLogin({
+      handle: `muxmin-${id}`.slice(0, 32), email: `muxmin-${id}@example.com`, password: "password123", displayName: "Min",
+    });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/mux");
+
+    const splitRight = page.locator(".mux-toolbar").getByRole("button", { name: "Split right" });
+    let clicks = 0;
+    while (await splitRight.isEnabled() && clicks < 20) {
+      await splitRight.click();
+      clicks++;
+    }
+    expect(clicks).toBeGreaterThan(0);
+    expect(clicks).toBeLessThan(5);
+    await expect(splitRight).toBeDisabled();
+
+    // Every pane is at least the minimum width.
+    const widths = await page.getByTestId("mux-pane").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+    for (const w of widths) expect(w).toBeGreaterThanOrEqual(255);
+
+    // The focused (narrow) pane's own split-right button is disabled too.
+    const focused = page.locator(".mux-pane.focused");
+    await expect(focused.getByRole("button", { name: "Split right" })).toBeDisabled();
+
+    // Dragging the first divider far left stops at the minimum width.
+    const divider = page.getByRole("separator").first();
+    const box = (await divider.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(0, box.y + box.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const first = await page.getByTestId("mux-pane").first().evaluate((e) => e.getBoundingClientRect().width);
+    expect(first).toBeGreaterThanOrEqual(255);
   });
 });
