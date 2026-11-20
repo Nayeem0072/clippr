@@ -197,10 +197,10 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, onClose, onAd
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4.5a2 2 0 012-2H8v11H3.5a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>
             )}
             {iconBtn("Split right", () => onSplit("right"),
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/></svg>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5h4.5a2 2 0 012 2v7a2 2 0 01-2 2H8z" fill="currentColor" fillOpacity="0.35"/></svg>
             )}
             {iconBtn("Split down", () => onSplit("down"),
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.4"/></svg>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13v3.5a2 2 0 01-2 2h-9a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>
             )}
           </span>
           {iconBtn("Close pane", requestClose,
