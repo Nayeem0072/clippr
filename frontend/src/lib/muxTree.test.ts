@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test";
 import {
   emptyPane, splitPane, closePane, setPaneSlug, setRatio, listPanes, findPaneBySlug,
-  findNode, parseStoredTree, parseSlugInput, computeLayout, MIN_RATIO, MAX_RATIO, type MuxNode,
+  findNode, parseStoredTree, parseSlugInput, computeLayout, splitSideToDir, MIN_RATIO, MAX_RATIO, type MuxNode,
 } from "./muxTree";
 
 function threePanes() {
@@ -20,6 +20,21 @@ describe("splitPane", () => {
       expect(tree.dir).toBe("row");
       expect(tree.b.type === "split" && tree.b.dir).toBe("col");
     }
+  });
+
+  it("split left puts the new pane before the target", () => {
+    const root = { ...emptyPane(), slug: "aaa" };
+    const { tree, newPaneId } = splitPane(root, root.id, "row", null, true);
+    expect(listPanes(tree).map((p) => p.id)).toEqual([newPaneId, root.id]);
+    const { panes } = computeLayout(tree);
+    expect(panes[0]).toMatchObject({ id: newPaneId, x: 0, w: 0.5 });
+    expect(panes[1]).toMatchObject({ id: root.id, slug: "aaa", x: 0.5 });
+  });
+
+  it("maps split sides to tree directions", () => {
+    expect(splitSideToDir("left")).toEqual({ dir: "row", before: true });
+    expect(splitSideToDir("right")).toEqual({ dir: "row", before: false });
+    expect(splitSideToDir("down")).toEqual({ dir: "col", before: false });
   });
 
   it("is a no-op for an unknown or non-pane id", () => {

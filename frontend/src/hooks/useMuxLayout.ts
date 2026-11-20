@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   closePane, findNode, findPaneBySlug, firstPaneId, listPanes, parseStoredTree,
-  setPaneSlug, setRatio, splitPane, type MuxNode, type SplitDir,
+  setPaneSlug, setRatio, splitPane, splitSideToDir, type MuxNode, type SplitDir, type SplitSide,
 } from "../lib/muxTree";
 
 // Mux layout (which pastes are open, splits and sizes) lives in this browser only.
@@ -44,9 +44,10 @@ export function useMuxLayout(userId: number | undefined) {
     setState((s) => (s.focusedId === paneId ? s : { ...s, focusedId: paneId }));
   }, []);
 
-  const split = useCallback((paneId: string, dir: SplitDir, slug: string | null = null) => {
+  const split = useCallback((paneId: string, side: SplitSide) => {
     setState((s) => {
-      const { tree, newPaneId } = splitPane(s.tree, paneId, dir, slug);
+      const { dir, before } = splitSideToDir(side);
+      const { tree, newPaneId } = splitPane(s.tree, paneId, dir, null, before);
       return newPaneId ? { tree, focusedId: newPaneId } : s;
     });
   }, []);

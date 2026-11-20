@@ -69,6 +69,27 @@ test.describe("Mux panel", () => {
     await expect(page.getByTestId("mux-pane")).toHaveCount(1);
   });
 
+  test("split left opens an empty pane to the left of the focused one", async ({ page, auth, paste }) => {
+    const me = await newUser(auth, "muxl");
+    const a = await paste.createViaApi(me.token, { title: "Right side", content: "stays right" });
+
+    await page.goto("/mux");
+    await addViaSlug(page, a);
+    await pane(page, a).getByRole("button", { name: "Split left" }).click();
+
+    await expect(page.getByTestId("mux-pane")).toHaveCount(2);
+    const empty = page.locator('[data-testid="mux-pane"][data-slug=""]');
+    const leftBox = (await empty.boundingBox())!;
+    const rightBox = (await pane(page, a).boundingBox())!;
+    expect(leftBox.x).toBeLessThan(rightBox.x);
+    expect(Math.abs(leftBox.y - rightBox.y)).toBeLessThan(2);
+
+    // Toolbar button splits the focused (new, empty) pane left again.
+    await page.getByRole("button", { name: "Split left", exact: true }).first().click();
+    await expect(page.getByTestId("mux-pane")).toHaveCount(3);
+    await expect(pane(page, a)).toContainText("stays right");
+  });
+
   test("other users' pastes are read-only; stale edits get a conflict banner", async ({ page, auth, paste }) => {
     const other = await newUser(auth, "muxo", false);
     const theirs = await paste.createViaApi(other.token, { title: "Theirs", content: "not yours" });

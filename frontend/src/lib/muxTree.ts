@@ -1,7 +1,15 @@
 // Pure layout model for the Mux panel: a binary tree of splits, like tmux.
 // No React here so it can be unit-tested with `bun test`.
 
-export type SplitDir = "row" | "col"; // row = side by side (split right), col = stacked (split down)
+export type SplitDir = "row" | "col"; // row = side by side, col = stacked
+
+/** User-facing split actions, mapped onto the tree's (dir, before) pair. */
+export type SplitSide = "left" | "right" | "down";
+export function splitSideToDir(side: SplitSide): { dir: SplitDir; before: boolean } {
+  if (side === "left") return { dir: "row", before: true };
+  if (side === "right") return { dir: "row", before: false };
+  return { dir: "col", before: false };
+}
 
 export type MuxPaneNode = { type: "pane"; id: string; slug: string | null };
 export type MuxSplitNode = { type: "split"; id: string; dir: SplitDir; ratio: number; a: MuxNode; b: MuxNode };
@@ -34,17 +42,25 @@ function mapNode(tree: MuxNode, id: string, fn: (n: MuxNode) => MuxNode): MuxNod
   return a === tree.a && b === tree.b ? tree : { ...tree, a, b };
 }
 
-/** Split pane `paneId`; the new pane goes after it (right or below). Returns the new tree and new pane id. */
+/**
+ * Split pane `paneId`. The new pane goes after it (right or below), or before it
+ * (left or above) when `before` is true. Returns the new tree and new pane id.
+ */
 export function splitPane(
   tree: MuxNode,
   paneId: string,
   dir: SplitDir,
-  slug: string | null = null
+  slug: string | null = null,
+  before = false
 ): { tree: MuxNode; newPaneId: string | null } {
   const target = findNode(tree, paneId);
   if (!target || target.type !== "pane") return { tree, newPaneId: null };
   const fresh: MuxPaneNode = { type: "pane", id: newId("p"), slug };
-  const next = mapNode(tree, paneId, (n) => ({ type: "split", id: newId("s"), dir, ratio: 0.5, a: n, b: fresh }));
+  const next = mapNode(tree, paneId, (n) =>
+    before
+      ? { type: "split", id: newId("s"), dir, ratio: 0.5, a: fresh, b: n }
+      : { type: "split", id: newId("s"), dir, ratio: 0.5, a: n, b: fresh }
+  );
   return { tree: next, newPaneId: fresh.id };
 }
 

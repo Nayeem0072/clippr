@@ -10,7 +10,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { Spinner } from "../ui/Spinner";
 import { useToast } from "../ui/Toast";
-import type { SplitDir } from "../../lib/muxTree";
+import type { SplitSide } from "../../lib/muxTree";
 
 type DocWithOwner = Document & { owner: { handle: string; display_name: string | null } };
 
@@ -19,7 +19,7 @@ interface MuxPaneProps {
   slug: string | null;
   focused: boolean;
   onFocus: () => void;
-  onSplit: (dir: SplitDir) => void;
+  onSplit: (side: SplitSide) => void;
   onClose: () => void;
   onAddHere: () => void;
   onDirtyChange: (paneId: string, dirty: boolean) => void;
@@ -193,10 +193,13 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, onClose, onAd
             </Link>
           )}
           <span className="mux-desktop-only" style={{ display: "contents" }}>
-            {iconBtn("Split right", () => onSplit("row"),
+            {iconBtn("Split left", () => onSplit("left"),
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4.5a2 2 0 012-2H8v11H3.5a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>
+            )}
+            {iconBtn("Split right", () => onSplit("right"),
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/></svg>
             )}
-            {iconBtn("Split down", () => onSplit("col"),
+            {iconBtn("Split down", () => onSplit("down"),
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 8h13" stroke="currentColor" strokeWidth="1.4"/></svg>
             )}
           </span>
