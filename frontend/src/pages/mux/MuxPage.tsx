@@ -132,8 +132,9 @@ export default function MuxPage() {
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           <span className="mux-desktop-only" style={{ display: "contents" }}>
-            <Button size="sm" variant="ghost" onClick={() => split(focusedId, "row")}>Split right</Button>
-            <Button size="sm" variant="ghost" onClick={() => split(focusedId, "col")}>Split down</Button>
+            <Button size="sm" variant="ghost" onClick={() => split(focusedId, "left")}>Split left</Button>
+            <Button size="sm" variant="ghost" onClick={() => split(focusedId, "right")}>Split right</Button>
+            <Button size="sm" variant="ghost" onClick={() => split(focusedId, "down")}>Split down</Button>
           </span>
           <Button size="sm" onClick={() => setPickerFor({ paneId: focusedId, dir: "row" })}>+ Add paste</Button>
         </div>
@@ -174,7 +175,7 @@ export default function MuxPage() {
                 slug={p.slug}
                 focused={p.id === focusedId}
                 onFocus={() => focus(p.id)}
-                onSplit={(dir) => split(p.id, dir)}
+                onSplit={(side) => split(p.id, side)}
                 onClose={() => close(p.id)}
                 onAddHere={() => setPickerFor({ paneId: p.id, dir: "row" })}
                 onDirtyChange={onDirtyChange}
