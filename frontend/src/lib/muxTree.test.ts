@@ -1,7 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import {
   emptyPane, splitPane, closePane, setPaneSlug, setRatio, listPanes, findPaneBySlug,
-  findNode, parseStoredTree, parseSlugInput, computeLayout, splitSideToDir, MIN_RATIO, MAX_RATIO, type MuxNode,
+  findNode, parseStoredTree, parseSlugInput, computeLayout, splitSideToDir,
+  canSplit, minSize, ratioBounds, MIN_PANE_W, MIN_PANE_H, PANE_GAP, MIN_RATIO, MAX_RATIO, type MuxNode,
 } from "./muxTree";
 
 function threePanes() {
@@ -133,5 +134,46 @@ describe("computeLayout", () => {
     const { panes } = computeLayout(setRatio(tree, tree.id, 0.25));
     expect(panes[0].w).toBeCloseTo(0.25);
     expect(panes[1].x).toBeCloseTo(0.25);
+  });
+});
+
+describe("minimum pane size", () => {
+  const canvas = { w: 1200, h: 800 };
+
+  it("allows a split only when both halves meet the minimum", () => {
+    const p = emptyPane();
+    expect(canSplit(p, p.id, "row", canvas)).toBe(true);
+    expect(canSplit(p, p.id, "row", { w: 2 * MIN_PANE_W + PANE_GAP - 1, h: 800 })).toBe(false);
+    expect(canSplit(p, p.id, "col", { w: 1200, h: 2 * MIN_PANE_H + PANE_GAP })).toBe(true);
+    expect(canSplit(p, p.id, "col", { w: 1200, h: 2 * MIN_PANE_H })).toBe(false);
+  });
+
+  it("stops repeated splitting once panes get too narrow", () => {
+    let tree: MuxNode = emptyPane();
+    let target = tree.id;
+    let splits = 0;
+    while (canSplit(tree, target, "row", canvas)) {
+      const r = splitPane(tree, target, "row");
+      tree = r.tree;
+      target = r.newPaneId!;
+      splits++;
+    }
+    expect(splits).toBe(2); // 1200 → 600 → 300; a 300px pane can't split into two ≥260px panes
+    for (const p of computeLayout(tree).panes) expect(p.w * canvas.w).toBeGreaterThanOrEqual(MIN_PANE_W);
+  });
+
+  it("computes nested minimum sizes", () => {
+    const { tree } = threePanes(); // row[ pane, col[pane, pane] ]
+    expect(minSize(tree)).toEqual({ w: 2 * MIN_PANE_W + PANE_GAP, h: 2 * MIN_PANE_H + PANE_GAP });
+  });
+
+  it("bounds divider ratios so every pane keeps the minimum", () => {
+    const { tree } = threePanes();
+    const [lo, hi] = ratioBounds(tree, tree.id, canvas)!;
+    expect(lo).toBeCloseTo((MIN_PANE_W + PANE_GAP / 2) / 1200);
+    expect(hi).toBeCloseTo(1 - (MIN_PANE_W + PANE_GAP / 2) / 1200);
+    // Too small for both sides at any ratio
+    expect(ratioBounds(tree, tree.id, { w: 400, h: 800 })).toBeNull();
+    expect(ratioBounds(tree, "nope", canvas)).toBeNull();
   });
 });

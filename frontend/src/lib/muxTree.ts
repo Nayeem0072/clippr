@@ -184,3 +184,49 @@ export function computeLayout(tree: MuxNode): { panes: PaneRect[]; dividers: Div
   walk(tree, { x: 0, y: 0, w: 1, h: 1 });
   return { panes, dividers };
 }
+
+// ── Minimum pane size ───────────────────────────────────────────────────────
+// Panes below this size break the header/editor layout, so splits and divider
+// drags are refused rather than producing slivers.
+export const MIN_PANE_W = 260; // px
+export const MIN_PANE_H = 150; // px
+export const PANE_GAP = 8;     // px between two panes (matches MuxPage's 2 × 4px)
+
+export interface Size { w: number; h: number }
+
+/** Smallest pixel size a subtree can occupy with every pane at its minimum. */
+export function minSize(n: MuxNode): Size {
+  if (n.type === "pane") return { w: MIN_PANE_W, h: MIN_PANE_H };
+  const a = minSize(n.a);
+  const b = minSize(n.b);
+  return n.dir === "row"
+    ? { w: a.w + b.w + PANE_GAP, h: Math.max(a.h, b.h) }
+    : { w: Math.max(a.w, b.w), h: a.h + b.h + PANE_GAP };
+}
+
+/** Whether splitting `paneId` in `dir` leaves both halves at or above the minimum, given the canvas size. */
+export function canSplit(tree: MuxNode, paneId: string, dir: SplitDir, canvas: Size): boolean {
+  const p = computeLayout(tree).panes.find((r) => r.id === paneId);
+  if (!p) return false;
+  return dir === "row"
+    ? p.w * canvas.w >= 2 * MIN_PANE_W + PANE_GAP
+    : p.h * canvas.h >= 2 * MIN_PANE_H + PANE_GAP;
+}
+
+/**
+ * Allowed ratio range for a split so neither side (including nested panes) drops below
+ * the minimum. Returns null if the split can't satisfy the minimum at any ratio.
+ */
+export function ratioBounds(tree: MuxNode, splitId: string, canvas: Size): [number, number] | null {
+  const node = findNode(tree, splitId);
+  const d = computeLayout(tree).dividers.find((x) => x.splitId === splitId);
+  if (!node || node.type !== "split" || !d) return null;
+  const row = node.dir === "row";
+  const total = row ? d.parent.w * canvas.w : d.parent.h * canvas.h;
+  if (total <= 0) return null;
+  const needA = (row ? minSize(node.a).w : minSize(node.a).h) + PANE_GAP / 2;
+  const needB = (row ? minSize(node.b).w : minSize(node.b).h) + PANE_GAP / 2;
+  const lo = Math.max(MIN_RATIO, needA / total);
+  const hi = Math.min(MAX_RATIO, 1 - needB / total);
+  return lo <= hi ? [lo, hi] : null;
+}
