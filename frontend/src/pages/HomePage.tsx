@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { trendingApi } from "../api/trending";
@@ -54,6 +55,38 @@ const PRIVACY = [
   { label: "Private", note: "People you pick" },
 ];
 
+const TODOS = [
+  { text: "Rotate the staging API keys", done: true },
+  { text: "Update the deploy runbook", done: false },
+  { text: "Review Ana's migration", done: false },
+];
+
+/** A small working checklist: the boxes really tick, like they do on a checklist paste. */
+function TodoDemo() {
+  const [done, setDone] = useState(() => TODOS.map((t) => t.done));
+  const count = done.filter(Boolean).length;
+  return (
+    <div className="home-well home-todo">
+      <span className="home-todo-progress">
+        <span>{count} of {TODOS.length} done</span>
+        <span className="home-todo-bar" aria-hidden="true">
+          <span style={{ width: `${(count / TODOS.length) * 100}%` }} />
+        </span>
+      </span>
+      {TODOS.map((t, i) => (
+        <label key={t.text} className={`home-todo-item${done[i] ? " done" : ""}`}>
+          <input
+            type="checkbox"
+            checked={done[i]}
+            onChange={(e) => setDone((d) => d.map((v, j) => (j === i ? e.target.checked : v)))}
+          />
+          <span>{t.text}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 const MEMBERS = [
   { initial: "M", color: "var(--home-c1)" },
   { initial: "A", color: "var(--home-c2)" },
@@ -70,7 +103,7 @@ export default function HomePage() {
             Stop digging through chat history for that one config. Put it in Clippr, share the link, and find it again later.
           </p>
           <ul className="home-checks">
-            <li><Check />Search every paste by title, code or diagram label</li>
+            <li><Check />Search every paste by title, code, diagram label or to-do</li>
             <li><Check />Send a paste straight to a teammate</li>
             <li><Check />Save the ones you keep coming back to</li>
           </ul>
@@ -103,15 +136,8 @@ export default function HomePage() {
             </div>
           </Tile>
 
-          <Tile title="You decide who sees it" text="Set it per paste.">
-            <div className="home-privacy">
-              {PRIVACY.map((p) => (
-                <span key={p.label} className={`home-privacy-row${p.active ? " active" : ""}`}>
-                  <span>{p.label}</span>
-                  <span className="home-muted">{p.note}</span>
-                </span>
-              ))}
-            </div>
+          <Tile title="To-do lists" text="Tick items off right on the paste. On group lists, your teammates can too.">
+            <TodoDemo />
           </Tile>
 
           <Tile title="Mux: pastes side by side" text="Split your screen into panes and edit several pastes at once." wide>
@@ -122,6 +148,17 @@ export default function HomePage() {
               </div>
               <div className="home-pane"><b>routes.ts</b>{'app.get("/api/…'}</div>
               <div className="home-pane"><b>notes.md</b>## TODO</div>
+            </div>
+          </Tile>
+
+          <Tile title="You decide who sees it" text="Set it per paste.">
+            <div className="home-privacy">
+              {PRIVACY.map((p) => (
+                <span key={p.label} className={`home-privacy-row${p.active ? " active" : ""}`}>
+                  <span>{p.label}</span>
+                  <span className="home-muted">{p.note}</span>
+                </span>
+              ))}
             </div>
           </Tile>
 
@@ -136,7 +173,7 @@ export default function HomePage() {
             </div>
           </Tile>
 
-          <Tile title="Links that preview" text="Paste a link in chat and the code shows up.">
+          <Tile title="Links that preview" text="Paste a link in chat and the code shows up." wide>
             <div className="home-well home-preview" aria-hidden="true">
               <span className="home-preview-bar" />
               <span className="home-preview-text">

@@ -16,6 +16,7 @@ test.describe("Home page (logged out)", () => {
     for (const name of [
       "Code that reads well",
       "Diagrams",
+      "To-do lists",
       "You decide who sees it",
       "Mux: pastes side by side",
       "Groups and organizations",
@@ -23,6 +24,13 @@ test.describe("Home page (logged out)", () => {
     ]) {
       await expect(tiles.getByRole("heading", { name })).toBeVisible();
     }
+
+    // The to-do demo really ticks.
+    const todo = tiles.getByRole("checkbox", { name: "Update the deploy runbook" });
+    await expect(todo).not.toBeChecked();
+    await todo.check();
+    await expect(todo).toBeChecked();
+    await expect(tiles.getByText("2 of 3 done")).toBeVisible();
 
     await page.getByRole("link", { name: "Explore pastes" }).click();
     await expect(page).toHaveURL(/\/search/);

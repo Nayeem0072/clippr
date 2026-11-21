@@ -1073,6 +1073,17 @@
 .home-node--db { border: 1.5px dashed var(--home-db); color: var(--home-db); border-radius: 50%; padding: 8px 16px; }
 .home-edge { width: 2px; height: 14px; background: var(--color-ink-2); }
 
+.home-todo { flex: 1; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; }
+.home-todo-progress { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; font-size: 11.5px; color: var(--color-ink-3); }
+.home-todo-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--color-border-subtle); overflow: hidden; }
+.home-todo-bar > span { display: block; height: 100%; background: var(--color-blue); transition: width 0.2s ease; }
+.home-todo-item {
+  display: flex; align-items: flex-start; gap: 9px; padding: 5px 2px; font-size: 13px; line-height: 1.4;
+  color: var(--color-ink); cursor: pointer;
+}
+.home-todo-item input { flex-shrink: 0; width: 16px; height: 16px; margin: 1px 0 0; accent-color: var(--color-blue); cursor: pointer; }
+.home-todo-item.done span { color: var(--color-ink-3); text-decoration: line-through; }
+
 .home-privacy { display: flex; flex-direction: column; gap: 6px; }
 .home-privacy-row {
   display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--color-ink);
