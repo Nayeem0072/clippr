@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Excalidraw, getSceneVersion, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
@@ -29,6 +29,26 @@ const UI_OPTIONS = {
   tools: { image: false },
 };
 
+const TOOLS_HIDDEN_KEY = "clippr-diagram-tools-hidden";
+
+function readToolsHidden() {
+  try {
+    return localStorage.getItem(TOOLS_HIDDEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function ToolsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+      <line x1="4" y1="18" x2="20" y2="18" />
+    </svg>
+  );
+}
+
 const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(function DiagramCanvas(
   { value, editable, onChange, height = "100%" },
   ref
@@ -43,6 +63,17 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   onChangeRef.current = onChange;
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Editing on wide canvases: the shape toolbar can be collapsed (remembered per browser).
+  const [toolsHidden, setToolsHidden] = useState(readToolsHidden);
+  const toggleTools = () =>
+    setToolsHidden((hidden) => {
+      try {
+        localStorage.setItem(TOOLS_HIDDEN_KEY, hidden ? "0" : "1");
+      } catch {
+        /* storage unavailable: just don't remember it */
+      }
+      return !hidden;
+    });
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -84,7 +115,7 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   return (
     <div
       ref={wrapRef}
-      className={`diagram-canvas${editable ? "" : " diagram-canvas--view"}`}
+      className={`diagram-canvas${editable ? "" : " diagram-canvas--view"}${editable && toolsHidden ? " diagram-canvas--tools-hidden" : ""}`}
       style={{ height }}
       data-testid="diagram-canvas"
     >
@@ -94,6 +125,21 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
         viewModeEnabled={!editable}
         theme={theme}
         UIOptions={UI_OPTIONS}
+        renderTopRightUI={(isMobile) =>
+          // Phones use Excalidraw's compact layout, where the toolbar sits elsewhere.
+          editable && !isMobile ? (
+            <button
+              type="button"
+              className={`diagram-tools-toggle${toolsHidden ? "" : " active"}`}
+              onClick={toggleTools}
+              aria-pressed={!toolsHidden}
+              aria-label={toolsHidden ? "Show toolbar" : "Hide toolbar"}
+              title={toolsHidden ? "Show toolbar" : "Hide toolbar"}
+            >
+              <ToolsIcon />
+            </button>
+          ) : null
+        }
         onChange={(elements) => {
           if (!editable || !onChangeRef.current) return;
           // Scrolling, zooming and selection don't change the scene version.
