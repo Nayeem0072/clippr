@@ -654,6 +654,9 @@
 /* No hamburger menu (find on canvas, help, reset canvas, background...): exporting and
    saving are handled by the app, and the rest isn't needed in a paste. */
 .diagram-canvas .main-menu-trigger { display: none !important; }
+/* In a narrow canvas (phone, small Mux pane) Excalidraw uses its compact layout, whose bottom
+   bar holds only that menu button in view mode, leaving an empty bar. Hide it when read-only. */
+.diagram-canvas--view .App-bottom-bar { display: none !important; }
 .mux-pane-body .diagram-canvas { border: none; border-radius: 0; }
 .editor-mode-btn { flex-shrink: 0; border: 1px solid var(--color-border-subtle); }
 @media (max-width: 768px) {
