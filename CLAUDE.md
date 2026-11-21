@@ -77,10 +77,7 @@ This is a monorepo with a Bun workspace (`package.json` at root) containing `bac
 - **Syntax highlighting**: `shiki` runs server-side at paste creation time, result stored as `highlighted_html`
 - **Rate limiting**: In-memory via `rate_limit_log` table — no external cache needed
 
-Route files map 1:1 to resource: `auth.ts`, `documents.ts`, `organizations.ts`, `search.ts`, `users.ts`.
-
 ### Frontend (`frontend/src/`)
-- **Framework**: React + Vite, TypeScript strict mode
 - **State**: TanStack Query for all server state. Auth state lives in the `["me"]` query key.
 - **Auth flow**: Token stored in `localStorage` as `auth_token`. `useAuth` hook skips the `/me` fetch entirely if no token exists (`enabled: !!getToken()`). On 401, token is cleared from localStorage. Logout clears token locally first (never fails).
 - **Layout**: `AppShell` renders either `TopNav` layout (logged-out) or `Sidebar` layout (logged-in) based on auth state. Shows a full-page spinner while auth is loading to prevent layout flash.
@@ -90,9 +87,9 @@ Route files map 1:1 to resource: `auth.ts`, `documents.ts`, `organizations.ts`, 
 - **Mux panel** (`/mux`, `pages/mux/MuxPage.tsx`): tmux-style split panes of pastes. The layout is a binary split tree (`lib/muxTree.ts`, pure + unit-tested with `bun test`) stored per user in `localStorage` (`clippr-mux:<userId>`); `computeLayout` flattens it to absolute rects so panes never remount when splitting/closing (editors keep drafts). Panes have a minimum size (`MIN_PANE_W`/`MIN_PANE_H` in `muxTree.ts`): split buttons disable and divider drags clamp (`canSplit`, `ratioBounds`) rather than going below it. Owners edit **content only** in a pane; saves send `PATCH /api/documents/:slug` with `expected_updated_at`, which returns **409** if the paste changed elsewhere (pane shows Reload / Overwrite).
 
 ### Key data model notes
-- Documents have three privacy levels: `public`, `org` (org members only), `private` (owner + explicitly shared users)
-- Organizations have `public`/`private` visibility. Members have roles: `owner`, `admin`, `member`
-- Invite flow: `GET /api/orgs/join/:code` previews, `POST` joins. Frontend auto-joins on page load if user is already authenticated.
+- Documents have three privacy levels: `public`, `group` (group members only), `private` (owner + explicitly shared users)
+- Groups have `public`/`private` visibility. Members have roles: `owner`, `admin`, `member`
+- Invite flow: `GET /api/groups/join/:code` previews, `POST` joins. Frontend auto-joins on page load if user is already authenticated.
 
 ### Mobile
 All UI work must be mobile-friendly. Breakpoint is `768px`. On mobile:
