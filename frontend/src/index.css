@@ -235,7 +235,10 @@
 
 /* Page animation */
 .page-enter {
-  animation: fade-up 0.3s ease forwards;
+  /* "backwards", not "forwards": a transform left on the page after the animation would make
+     it the containing block for position:fixed children (Excalidraw's full-window layer),
+     which then overflow the page and add stray scrolling. */
+  animation: fade-up 0.3s ease backwards;
 }
 
 @keyframes fade-up {
