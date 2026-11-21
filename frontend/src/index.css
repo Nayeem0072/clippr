@@ -44,19 +44,20 @@
 
 :root[data-theme="light"] {
   /* Layout */
-  --color-bg:             #F7F7F7;
-  --color-sidebar:        #EFEFEF;
-  --color-surface:        #E5E5E5;
+  /* "Lighter stone": warm light greys, with the same blue accent as before. */
+  --color-bg:             #F9F8F6;
+  --color-sidebar:        #F2F1ED;
+  --color-surface:        #ECEAE5;
   --color-card:           #FFFFFF;
-  --color-card-hover:     #F5F5F5;
-  --color-border:         #D0D0D0;
-  --color-border-subtle:  #E0E0E0;
-  --color-border-hover:   #B0B0B0;
+  --color-card-hover:     #FBFAF8;
+  --color-border:         #DCD8D0;
+  --color-border-subtle:  #E9E6E0;
+  --color-border-hover:   #BFB9AE;
 
   /* Text */
-  --color-ink:   #1A1A2E;
-  --color-ink-2: #5A5A78;
-  --color-ink-3: #9090A8;
+  --color-ink:   #1D1C1A;
+  --color-ink-2: #5E5A52;
+  --color-ink-3: #77726A;
 
   /* Accent */
   --color-blue:          #007BA8;
@@ -70,18 +71,18 @@
   /* Component-specific */
   --color-input-bg:         #FFFFFF;
   --color-btn-primary-text: #FFFFFF;
-  --color-nav-hover-bg:     rgba(0,0,0,0.05);
-  --color-hover-overlay:    rgba(0,0,0,0.04);
-  --color-topnav-bg:        rgba(247,247,247,0.92);
-  --color-table-header-bg:  rgba(0,0,0,0.04);
+  --color-nav-hover-bg:     rgba(60,50,30,0.06);
+  --color-hover-overlay:    rgba(60,50,30,0.04);
+  --color-topnav-bg:        rgba(249,248,246,0.92);
+  --color-table-header-bg:  rgba(60,50,30,0.04);
   --color-mobile-topbar-bg: var(--color-bg);
-  --color-md-code-bg:       rgba(0,0,0,0.06);
+  --color-md-code-bg:       rgba(60,50,30,0.06);
   --color-md-blockquote-bg: rgba(0,123,168,0.06);
   --color-selection-bg:     rgba(0,123,168,0.2);
 
   /* Shadows */
-  --shadow-card:       0 2px 12px rgba(0,0,0,0.08);
-  --shadow-card-hover: 0 4px 20px rgba(0,0,0,0.14);
+  --shadow-card:       0 2px 12px rgba(40,30,15,0.07);
+  --shadow-card-hover: 0 4px 20px rgba(40,30,15,0.12);
   --shadow-blue:       0 0 0 1px rgba(0,123,168,0.4), 0 4px 16px rgba(0,123,168,0.2);
 }
 
@@ -910,7 +911,7 @@
   --home-fn: #007BA8;
   --home-num: #B45309;
   --home-db: #7C3AED;
-  --home-well: #F4F4F6;
+  --home-well: #F5F3EF;
   --home-c1: #007BA8;
   --home-c2: #7C3AED;
   --home-c3: #B45309;
