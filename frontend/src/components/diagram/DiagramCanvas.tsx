@@ -30,6 +30,8 @@ const UI_OPTIONS = {
   tools: { image: false },
 };
 
+const HINT_MS = 2500;
+
 const TOOLS_HIDDEN_KEY = "clippr-diagram-tools-hidden";
 
 function readToolsHidden() {
@@ -77,8 +79,22 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
       return !hidden;
     });
 
+  // Excalidraw's hint ("Click and drag, release when you're finished") stays up for as long as
+  // a tool is selected. Show it briefly after each tool change, then fade it out.
+  const [hintHidden, setHintHidden] = useState(false);
+  const lastTool = useRef<string | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteTool = (tool: string) => {
+    if (tool === lastTool.current) return;
+    lastTool.current = tool;
+    setHintHidden(false);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setHintHidden(true), HINT_MS);
+  };
+
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
   }, []);
 
   // View mode: keep the whole drawing in view, e.g. on a phone or a narrow Mux pane.
@@ -143,7 +159,7 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   return (
     <div
       ref={wrapRef}
-      className={`diagram-canvas${editable ? "" : " diagram-canvas--view"}${editable && toolsHidden ? " diagram-canvas--tools-hidden" : ""}`}
+      className={`diagram-canvas${editable ? "" : " diagram-canvas--view"}${editable && toolsHidden ? " diagram-canvas--tools-hidden" : ""}${hintHidden ? " diagram-canvas--hint-hidden" : ""}`}
       style={{ height }}
       data-testid="diagram-canvas"
     >
@@ -157,7 +173,8 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
           // Phones use the compact layout: the toggle goes into its side tool group instead.
           editable && !isMobile ? toolsToggle : null
         }
-        onChange={(elements) => {
+        onChange={(elements, appState) => {
+          if (editable) noteTool(appState.activeTool.type);
           if (!editable || !onChangeRef.current) return;
           // Scrolling, zooming and selection don't change the scene version.
           const version = getSceneVersion(elements);
