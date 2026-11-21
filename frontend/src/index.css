@@ -782,3 +782,41 @@
 @media (prefers-reduced-motion: reduce) {
   .app-sidebar { transition: none; }
 }
+
+/* ── Editor card + Excalidraw toolbar on phones ─────────────────────────── */
+.editor-card { padding: 20px; }
+@media (max-width: 768px) {
+  /* Every pixel counts for the drawing canvas and its toolbar. */
+  .editor-card { padding: 14px 12px; }
+}
+/* Excalidraw's compact (narrow canvas) toolbar can be wider than the canvas; it would be
+   clipped with no way to reach the hidden tools. Keep it inside the canvas and let it
+   scroll sideways instead. */
+.diagram-canvas .excalidraw--mobile .App-top-bar {
+  left: 0;
+  right: 0;
+  max-width: 100%;
+}
+.diagram-canvas .excalidraw--mobile .App-top-bar > section,
+.diagram-canvas .excalidraw--mobile .App-top-bar .Stack_vertical,
+.diagram-canvas .excalidraw--mobile .App-toolbar-container {
+  min-width: 0;
+  max-width: 100%;
+}
+/* The toolbar's parent is a grid whose column would grow to fit the toolbar; let it shrink. */
+.diagram-canvas .excalidraw--mobile .App-toolbar-container {
+  grid-auto-columns: minmax(0, 1fr);
+}
+.diagram-canvas .excalidraw--mobile .App-toolbar--mobile {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+.diagram-canvas .excalidraw--mobile .App-toolbar--mobile::-webkit-scrollbar { display: none; }
+.diagram-canvas .excalidraw--mobile .App-toolbar--mobile > .Stack {
+  flex-shrink: 0;
+  width: max-content;
+}

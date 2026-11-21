@@ -98,7 +98,7 @@ export default function NewDocPage() {
         </Button>
       </StickyEditorHeader>
 
-      <div className="pp-card" style={{ padding: 20 }}>
+      <div className="pp-card editor-card">
         <DocEditor
           {...form}
           groupId={form.groupId}

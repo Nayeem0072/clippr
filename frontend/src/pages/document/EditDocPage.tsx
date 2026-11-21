@@ -101,7 +101,7 @@ export default function EditDocPage() {
         <Button onClick={() => update.mutate()} loading={update.isPending}>Save Changes</Button>
       </StickyEditorHeader>
 
-      <div className="pp-card" style={{ padding: 20 }}>
+      <div className="pp-card editor-card">
         <DocEditor
           {...form}
           groupId={form.groupId}
