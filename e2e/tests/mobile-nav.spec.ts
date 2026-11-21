@@ -3,29 +3,29 @@ import { test, expect, uid } from "../fixtures";
 // These tests run on the mobile-chrome project (Pixel 5, 393px wide)
 // which triggers the ≤768px mobile CSS breakpoint
 
+async function login(auth: any) {
+  const id = uid();
+  await auth.createAndLogin({
+    handle: `u${id}`,
+    email: `u${id}@test.pp`,
+    password: "testpassword1",
+    displayName: "Test User",
+  });
+}
+
 test.describe("Mobile Nav", () => {
   test("logged in: mobile nav visible, sidebar hidden, 5 nav items present", async ({ auth, page }) => {
-    const id = uid();
-    const user = {
-      handle: `u${id}`,
-      email: `u${id}@test.pp`,
-      password: "testpassword1",
-      displayName: "Test User",
-    };
-    await auth.createAndLogin(user);
-
+    await login(auth);
     await page.goto("/new");
     await page.waitForURL("**/new", { timeout: 10000 });
 
-    // Mobile nav should be visible
     await expect(page.locator(".mobile-nav")).toBeVisible({ timeout: 5000 });
-
-    // Desktop sidebar should be hidden
     await expect(page.locator(".app-sidebar")).not.toBeVisible();
 
-    // Exactly 5 nav items: New, Explore, Orgs, Pastes, Logout
-    const items = page.locator(".mobile-nav-item");
+    // New, Explore, Pastes, Shared, More
+    const items = page.locator(".mobile-nav .mobile-nav-item");
     await expect(items).toHaveCount(5);
+    await expect(items).toHaveText(["New", "Explore", "Pastes", "Shared", "More"]);
   });
 
   test("logged out: mobile nav not visible", async ({ page }) => {
@@ -39,23 +39,36 @@ test.describe("Mobile Nav", () => {
     await expect(page.locator(".mobile-nav")).not.toBeVisible();
   });
 
+  test("More opens the other pages and closes after navigating", async ({ auth, page }) => {
+    await login(auth);
+    await page.goto("/new");
+
+    const more = page.getByRole("button", { name: "More" });
+    await more.click();
+    const sheet = page.getByRole("dialog", { name: "More pages" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("link")).toHaveText(["Trending", "Saved", "Mux", "Groups", "Settings"]);
+
+    await sheet.getByRole("link", { name: "Groups" }).click();
+    await page.waitForURL("**/groups");
+    await expect(sheet).toBeHidden();
+
+    // A page from the sheet highlights More.
+    await expect(page.locator(".mobile-nav-item.active")).toHaveText("More");
+
+    // Escape and the backdrop both close it.
+    await more.click();
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+    await more.click();
+    await page.mouse.click(200, 120);
+    await expect(sheet).toBeHidden();
+  });
+
   test("active nav item matches current route", async ({ auth, page }) => {
-    const id = uid();
-    const user = {
-      handle: `u${id}`,
-      email: `u${id}@test.pp`,
-      password: "testpassword1",
-      displayName: "Test User",
-    };
-    await auth.createAndLogin(user);
-
-    // Navigate to /orgs
-    await page.goto("/orgs");
-    await page.waitForURL("**/orgs", { timeout: 10000 });
-
-    // The Orgs nav item should have the active class
-    const activeItem = page.locator(".mobile-nav-item.active");
-    await expect(activeItem).toBeVisible({ timeout: 5000 });
-    await expect(activeItem).toContainText("Orgs");
+    await login(auth);
+    await page.goto("/search");
+    await expect(page.locator(".mobile-nav-item.active")).toHaveText("Explore");
   });
 });

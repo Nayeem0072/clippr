@@ -283,9 +283,25 @@ export function MobileTopBar() {
   );
 }
 
+const MoreIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" />
+  </svg>
+);
+
+/** Pages reached from the phone nav's "More" sheet (the bar itself keeps five items). */
+const MORE_ITEMS = [
+  { to: "/trending", label: "Trending", icon: <TrendingIcon /> },
+  { to: "/saved", label: "Saved", icon: <SavedIcon /> },
+  { to: "/mux", label: "Mux", icon: <MuxIcon /> },
+  { to: "/groups", label: "Groups", icon: <OrgsIcon /> },
+  { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
+];
+
 export function MobileNav() {
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const active = useCallback((path: string, exact = false) =>
     exact ? pathname === path : pathname === path || pathname.startsWith(path + "/")
@@ -298,52 +314,68 @@ export function MobileNav() {
   });
   const unreadCount = countData?.count ?? 0;
 
+  // Close the sheet on navigation and on Escape.
+  useEffect(() => setMoreOpen(false), [pathname]);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
+  const moreActive = MORE_ITEMS.some((i) => active(i.to));
+
   return (
-    <nav className="mobile-nav">
-      <Link to="/new" className={`mobile-nav-item ${active("/new", true) ? "active" : ""}`}>
-        <PlusIcon />
-        New
-      </Link>
-      <Link to="/search" className={`mobile-nav-item ${active("/search") ? "active" : ""}`}>
-        <SearchIcon />
-        Explore
-      </Link>
-      <Link to="/trending" className={`mobile-nav-item ${active("/trending") ? "active" : ""}`}>
-        <TrendingIcon />
-        Trending
-      </Link>
-      <Link to={`/${user?.handle}`} className={`mobile-nav-item ${active(`/${user?.handle ?? "__"}`) ? "active" : ""}`}>
-        <DocsIcon />
-        Pastes
-      </Link>
-      <Link to="/shared" className={`mobile-nav-item ${active("/shared") ? "active" : ""}`}>
-        <div style={{ position: "relative", display: "inline-flex" }}>
-          <SharedIcon />
-          {unreadCount > 0 && (
-            <span style={{
-              position: "absolute", top: -3, right: -4,
-              width: 7, height: 7, borderRadius: "50%", background: "var(--color-blue)",
-            }} />
-          )}
-        </div>
-        Shared
-      </Link>
-      <Link to="/saved" className={`mobile-nav-item ${active("/saved") ? "active" : ""}`}>
-        <SavedIcon />
-        Saved
-      </Link>
-      <Link to="/mux" className={`mobile-nav-item ${active("/mux") ? "active" : ""}`}>
-        <MuxIcon />
-        Mux
-      </Link>
-      <Link to="/groups" className={`mobile-nav-item ${active("/groups") ? "active" : ""}`}>
-        <OrgsIcon />
-        Groups
-      </Link>
-      <Link to="/settings" className={`mobile-nav-item ${active("/settings") ? "active" : ""}`}>
-        <SettingsIcon />
-        Settings
-      </Link>
-    </nav>
+    <>
+      {moreOpen && (
+        <>
+          <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)} aria-hidden="true" />
+          <div className="mobile-more-sheet" role="dialog" aria-label="More pages" id="mobile-more-sheet">
+            {MORE_ITEMS.map((i) => (
+              <Link key={i.to} to={i.to} className={`mobile-more-item ${active(i.to) ? "active" : ""}`}>
+                {i.icon}
+                {i.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+      <nav className="mobile-nav">
+        <Link to="/new" className={`mobile-nav-item ${active("/new", true) ? "active" : ""}`}>
+          <PlusIcon />
+          New
+        </Link>
+        <Link to="/search" className={`mobile-nav-item ${active("/search") ? "active" : ""}`}>
+          <SearchIcon />
+          Explore
+        </Link>
+        <Link to={`/${user?.handle}`} className={`mobile-nav-item ${active(`/${user?.handle ?? "__"}`) ? "active" : ""}`}>
+          <DocsIcon />
+          Pastes
+        </Link>
+        <Link to="/shared" className={`mobile-nav-item ${active("/shared") ? "active" : ""}`}>
+          <div style={{ position: "relative", display: "inline-flex" }}>
+            <SharedIcon />
+            {unreadCount > 0 && (
+              <span style={{
+                position: "absolute", top: -3, right: -4,
+                width: 7, height: 7, borderRadius: "50%", background: "var(--color-blue)",
+              }} />
+            )}
+          </div>
+          Shared
+        </Link>
+        <button
+          type="button"
+          className={`mobile-nav-item ${moreActive || moreOpen ? "active" : ""}`}
+          aria-expanded={moreOpen}
+          aria-controls="mobile-more-sheet"
+          onClick={() => setMoreOpen((o) => !o)}
+        >
+          <MoreIcon />
+          More
+        </button>
+      </nav>
+    </>
   );
 }
