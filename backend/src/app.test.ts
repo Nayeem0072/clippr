@@ -357,3 +357,127 @@ describe("bot link previews (Vercel passes the original URL after a rewrite)", (
     expect(viaRewrite.status).toBe(direct.status);
   });
 });
+
+describe("diagram pastes", () => {
+  const label = `flamingo${uid}`;
+  const scene = (text = label, extra: Json = {}) =>
+    JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "test",
+      elements: [
+        { id: "r1", type: "rectangle", x: 0, y: 0, width: 100, height: 60, strokeColor: "#1e1e1e" },
+        { id: "t1", type: "text", x: 10, y: 10, text, containerId: "r1" },
+        { id: "t2", type: "text", x: 10, y: 90, text: "deleted words", isDeleted: true },
+      ],
+      appState: { viewBackgroundColor: "#ffffff" },
+      files: {},
+      ...extra,
+    });
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60"><rect width="100" height="60" fill="none" stroke="#1e1e1e"/></svg>';
+
+  async function createDiagram(body: Json = {}) {
+    return call("POST", "/api/documents", { title: "Flow", language: "diagram", content: scene(), preview_svg: svg, ...body }, alice.token);
+  }
+
+  it("creates a diagram without syntax highlighting and hides internal columns", async () => {
+    const r = await createDiagram();
+    expect(r.status).toBe(201);
+    const got = await call("GET", `/api/documents/${r.data.slug}`);
+    expect(got.status).toBe(200);
+    expect(got.data.doc.language).toBe("diagram");
+    expect(got.data.doc.highlighted_html).toBeNull();
+    expect(JSON.parse(got.data.doc.content).elements).toHaveLength(3);
+    expect("preview_svg" in got.data.doc).toBe(false);
+    expect("search_text" in got.data.doc).toBe(false);
+  });
+
+  it("rejects content that isn't a usable Excalidraw scene", async () => {
+    const bad = [
+      "not json",
+      JSON.stringify({ type: "other", elements: [] }),
+      JSON.stringify({ type: "excalidraw" }),
+      scene(label, { files: { f1: { dataURL: "data:image/png;base64,AAAA" } } }),
+      JSON.stringify({ type: "excalidraw", elements: [{ type: "text", text: "x".repeat(1_000_001) }] }),
+    ];
+    for (const content of bad) {
+      const r = await createDiagram({ content });
+      expect(r.status).toBe(400);
+    }
+  });
+
+  it("indexes label text for search, never the JSON", async () => {
+    const own = `ibis${uid}`;
+    await createDiagram({ content: scene(own) });
+    const hit = await call("GET", `/api/search?q=${own}`);
+    expect(hit.data.total).toBe(1);
+    expect(hit.data.results[0].language).toBe("diagram");
+    expect(hit.data.results[0].excerpt).toContain(own);
+    expect(hit.data.results[0].excerpt).not.toContain("{");
+
+    const json = await call("GET", `/api/search?q=strokeColor`);
+    expect(json.data.results.every((d: Json) => d.language !== "diagram")).toBe(true);
+    const deleted = await call("GET", `/api/search?q=deleted%20words`, undefined, alice.token);
+    expect(deleted.data.results.every((d: Json) => d.language !== "diagram")).toBe(true);
+  });
+
+  it("re-validates on PATCH, refreshes search, and keeps optimistic concurrency", async () => {
+    const { data } = await createDiagram();
+    const doc = (await call("GET", `/api/documents/${data.slug}`, undefined, alice.token)).data.doc;
+
+    expect((await call("PATCH", `/api/documents/${data.slug}`, { content: "nope" }, alice.token)).status).toBe(400);
+
+    const newLabel = `heron${uid}`;
+    const ok = await call(
+      "PATCH", `/api/documents/${data.slug}`,
+      { content: scene(newLabel), preview_svg: svg, expected_updated_at: doc.updated_at }, alice.token
+    );
+    expect(ok.status).toBe(200);
+    expect(ok.data.doc.highlighted_html).toBeNull();
+    expect("preview_svg" in ok.data.doc).toBe(false);
+    expect((await call("GET", `/api/search?q=${newLabel}`)).data.total).toBe(1);
+
+    const stale = await call(
+      "PATCH", `/api/documents/${data.slug}`,
+      { content: scene("late"), expected_updated_at: doc.updated_at - 10 }, alice.token
+    );
+    expect(stale.status).toBe(409);
+    expect("preview_svg" in stale.data.doc).toBe(false);
+  });
+
+  it("won't turn a diagram into a code paste or the other way round", async () => {
+    const { data: d } = await createDiagram();
+    expect((await call("PATCH", `/api/documents/${d.slug}`, { language: "python" }, alice.token)).status).toBe(400);
+    const { data: code } = await call("POST", "/api/documents", { content: "print(1)", language: "python" }, alice.token);
+    expect((await call("PATCH", `/api/documents/${code.slug}`, { language: "diagram", content: scene() }, alice.token)).status).toBe(400);
+    // Title changes on a diagram are still fine.
+    expect((await call("PATCH", `/api/documents/${d.slug}`, { title: "Renamed" }, alice.token)).status).toBe(200);
+  });
+
+  it("drops unsafe preview SVGs but still saves the diagram", async () => {
+    const r = await createDiagram({ preview_svg: '<svg><script>alert(1)</script></svg>' });
+    expect(r.status).toBe(201);
+    const og = await call("GET", `/api/og/image/${r.data.slug}.png`);
+    expect(og.status).toBe(200); // falls back to label text
+  });
+
+  it("renders link previews from the snapshot and labels", async () => {
+    const { data } = await createDiagram();
+    const og = await call("GET", `/api/og/image/${data.slug}.png`);
+    expect(og.status).toBe(200);
+    expect(og.res.headers.get("content-type")).toBe("image/png");
+
+    const meta = await app.fetch(new Request(`http://test.local/api/og/meta/${data.slug}`));
+    const html = await meta.text();
+    expect(html).toContain(label);
+    expect(html).not.toContain("excalidraw");
+  });
+
+  it("still indexes code pastes by their content", async () => {
+    const word = `pelican${uid}`;
+    await call("POST", "/api/documents", { content: `code with ${word}` }, alice.token);
+    const r = await call("GET", `/api/search?q=${word}`);
+    expect(r.data.total).toBe(1);
+    expect(r.data.results[0].excerpt).toContain(word);
+  });
+});

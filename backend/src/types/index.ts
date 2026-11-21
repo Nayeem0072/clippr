@@ -15,6 +15,8 @@ export interface Document {
   content: string;
   language: string;
   highlighted_html: string | null;
+  search_text?: string | null;
+  preview_svg?: string | null;
   privacy: "public" | "group" | "private";
   group_id: number | null;
   owner_id: number;

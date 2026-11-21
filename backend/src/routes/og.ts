@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Resvg } from "@resvg/resvg-js";
 import { fileURLToPath } from "node:url";
 import { db } from "../db/client.js";
+import { diagramText, isDiagram } from "../lib/diagram.js";
 
 // Fonts are bundled with the app (serverless hosts have no system fonts).
 // Shipped to Vercel functions via `includeFiles` in vercel.json.
@@ -43,6 +44,7 @@ const LANG_COLORS: Record<string, string> = {
   kotlin: "#A97BFF", php: "#4F5D95", html: "#e34c26", css: "#563d7c",
   json: "#292929", yaml: "#cb171e", sql: "#e38c00", bash: "#89e051",
   sh: "#89e051", markdown: "#083fa1", dockerfile: "#384d54",
+  diagram: "#00C4FF",
 };
 
 function langColor(lang: string) {
@@ -55,9 +57,9 @@ app.get("/image/:slug", async (c) => {
   const slug = c.req.param("slug").replace(/\.png$/, "");
 
   const row = await db.query<
-    { title: string; content: string; language: string; privacy: string; owner_id: number },
+    { title: string; content: string; language: string; privacy: string; owner_id: number; preview_svg: string | null },
     [string]
-  >("SELECT title, content, language, privacy, owner_id FROM documents WHERE slug = ?").get(slug);
+  >("SELECT title, content, language, privacy, owner_id, preview_svg FROM documents WHERE slug = ?").get(slug);
 
   const owner = row
     ? await db.query<{ handle: string }, [number]>(
@@ -77,14 +79,9 @@ app.get("/image/:slug", async (c) => {
   const lang = esc(row.language);
   const color = langColor(row.language);
 
-  const lines = row.content
-    .split("\n")
-    .slice(0, 6)
-    .map((l) => esc(trunc(l, 80)));
-
-  const codeLines = lines
-    .map((l, i) => `<text x="60" y="${380 + i * 26}" font-family="'DejaVu Sans Mono',monospace" font-size="15" fill="#8A8AA2">${l}</text>`)
-    .join("\n    ");
+  const body = isDiagram(row.language)
+    ? diagramBody(row.content, row.preview_svg)
+    : textLines(row.content.split("\n"));
 
   return c.body(svgToPng(`<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <rect width="1200" height="630" fill="#1C1C22"/>
@@ -95,12 +92,67 @@ app.get("/image/:slug", async (c) => {
   <text x="60" y="130" font-family="'DejaVu Sans Mono',monospace" font-size="36" font-weight="700" fill="#EEEEF5">${title}</text>
   <text x="62" y="168" font-family="'DejaVu Sans Mono',monospace" font-size="18" fill="#8A8AA2">@${handle}</text>
   <line x1="60" y1="194" x2="1140" y2="194" stroke="#38383F" stroke-width="1"/>
-  ${codeLines}
+  ${body}
   <rect y="626" width="1200" height="4" rx="3" fill="#00C4FF"/>
 </svg>`));
 });
 
+/** First lines of text, drawn as code under the title. */
+function textLines(lines: string[]): string {
+  return lines
+    .slice(0, 6)
+    .map((l) => esc(trunc(l, 80)))
+    .map((l, i) => `<text x="60" y="${380 + i * 26}" font-family="'DejaVu Sans Mono',monospace" font-size="15" fill="#8A8AA2">${l}</text>`)
+    .join("\n    ");
+}
+
+/**
+ * Places a (sanitized, see lib/diagram.ts) snapshot inside the card as a nested <svg>. Inlined
+ * rather than an <image>, because resvg renders <image> SVGs without our fonts, losing labels.
+ * Labels use Excalidraw's fonts, which we don't bundle; they fall back to the default font.
+ */
+function nestPreview(svg: string, box: { x: number; y: number; width: number; height: number }): string | null {
+  const open = svg.match(/^<svg\b[^>]*>/i);
+  if (!open || !svg.endsWith("</svg>")) return null;
+  const attr = (name: string) => open[0].match(new RegExp(`\\s${name}\\s*=\\s*["']([^"']*)["']`, "i"))?.[1];
+  let viewBox = attr("viewBox");
+  if (!viewBox) {
+    const w = parseFloat(attr("width") ?? ""), h = parseFloat(attr("height") ?? "");
+    if (!(w > 0 && h > 0)) return null;
+    viewBox = `0 0 ${w} ${h}`;
+  }
+  if (!/^[\d.\s,-]+$/.test(viewBox)) return null;
+  const inner = svg.slice(open[0].length, -"</svg>".length);
+  return `<svg x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" viewBox="${viewBox}" preserveAspectRatio="xMidYMid meet" xmlns:xlink="http://www.w3.org/1999/xlink">${inner}</svg>`;
+}
+
+/** The diagram's preview snapshot on a light panel, or its label text when there's no snapshot. */
+function diagramBody(content: string, previewSvg: string | null): string {
+  const nested = previewSvg ? nestPreview(previewSvg, { x: 76, y: 226, width: 1048, height: 366 }) : null;
+  if (nested) {
+    return `<rect x="60" y="214" width="1080" height="390" rx="12" fill="#FFFFFF"/>
+  ${nested}`;
+  }
+  let labels = "";
+  try {
+    labels = diagramText(JSON.parse(content)?.elements);
+  } catch {
+    // fall through to the generic line
+  }
+  return textLines(labels ? labels.split("\n") : ["A diagram on clippr"]);
+}
+
 // ── Paste meta shell ───────────────────────────────────────────────────────
+
+/** Text for the meta description: the paste itself, or a diagram's labels (never its JSON). */
+function metaText(content: string, language: string): string {
+  if (!isDiagram(language)) return content;
+  try {
+    return diagramText(JSON.parse(content)?.elements) || "A diagram on clippr";
+  } catch {
+    return "A diagram on clippr";
+  }
+}
 
 app.get("/meta/:slug", async (c) => {
   const { slug } = c.req.param();
@@ -109,9 +161,9 @@ app.get("/meta/:slug", async (c) => {
   const dest = `${frontendUrl}/docs/${slug}`;
 
   const row = await db.query<
-    { title: string; content: string; privacy: string; owner_id: number },
+    { title: string; content: string; language: string; privacy: string; owner_id: number },
     [string]
-  >("SELECT title, content, privacy, owner_id FROM documents WHERE slug = ?").get(slug);
+  >("SELECT title, content, language, privacy, owner_id FROM documents WHERE slug = ?").get(slug);
 
   c.header("Content-Type", "text/html; charset=utf-8");
 
@@ -120,7 +172,7 @@ app.get("/meta/:slug", async (c) => {
   }
 
   const title = esc((row.title || "Untitled") + " — clippr");
-  const description = esc(trunc(row.content.trimStart().replace(/\s+/g, " "), 160));
+  const description = esc(trunc(metaText(row.content, row.language).trimStart().replace(/\s+/g, " "), 160));
   const imageUrl = esc(`${backendOrigin}/api/og/image/${slug}.png`);
   const pageUrl = esc(dest);
 

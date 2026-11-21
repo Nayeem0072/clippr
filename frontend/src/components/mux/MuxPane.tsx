@@ -11,6 +11,8 @@ import { Button } from "../ui/Button";
 import { Spinner } from "../ui/Spinner";
 import { useToast } from "../ui/Toast";
 import type { SplitSide } from "../../lib/muxTree";
+import { isDiagramDoc, LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
+import { buildDiagramPayload } from "../../lib/diagramExport";
 
 type DocWithOwner = Document & { owner: { handle: string; display_name: string | null } };
 
@@ -47,6 +49,8 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
     staleTime: 60_000,
   });
   const doc = data?.doc;
+  const isDiagram = isDiagramDoc(doc?.language);
+  const diagramRef = useRef<DiagramCanvasHandle>(null);
   const isOwner = !!doc && !!user && doc.owner_id === user.id;
   const editing = draft !== null;
   const dirty = editing && base !== null && draft !== base.content;
@@ -64,11 +68,15 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
   }, [slug]);
 
   const save = useMutation({
-    mutationFn: (opts: { force?: boolean }) =>
-      docsApi.update(slug!, {
-        content: draft ?? "",
-        ...(opts.force || !base ? {} : { expected_updated_at: base.updated_at }),
-      }),
+    mutationFn: async (opts: { force?: boolean }) => {
+      const guard = opts.force || !base ? {} : { expected_updated_at: base.updated_at };
+      if (isDiagram) {
+        // Read the live canvas: the last strokes may not have reached `draft` yet.
+        const json = diagramRef.current?.getJSON() ?? draft ?? "";
+        return docsApi.update(slug!, { ...(await buildDiagramPayload(json)), ...guard });
+      }
+      return docsApi.update(slug!, { content: draft ?? "", ...guard });
+    },
     onSuccess: (res) => {
       qc.setQueryData<{ doc: DocWithOwner }>(["doc", slug], (old) =>
         old ? { doc: { ...old.doc, ...res.doc } } : old
@@ -117,7 +125,8 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
   // Cmd/Ctrl+S saves the focused pane only.
   const saveRef = useRef<() => void>(() => {});
   saveRef.current = () => {
-    if (dirty && !save.isPending && !conflict) save.mutate({});
+    const pending = dirty || (isDiagram && editing && !!diagramRef.current && diagramRef.current.getJSON() !== base?.content);
+    if (pending && !save.isPending && !conflict) save.mutate({});
   };
   useEffect(() => {
     if (!focused || !editing) return;
@@ -245,10 +254,22 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
             <Button size="sm" variant="ghost" onClick={onClose}>Remove pane</Button>
           </div>
         )}
-        {doc && editing && (
+        {doc && editing && isDiagram && (
+          <LazyDiagramCanvas
+            ref={diagramRef}
+            key={`edit-${base?.updated_at}`}
+            value={base?.content ?? doc.content}
+            editable
+            onChange={setDraft}
+          />
+        )}
+        {doc && editing && !isDiagram && (
           <CodeEditor value={draft ?? ""} onChange={setDraft} language={doc.language} minHeight="100%" />
         )}
-        {doc && !editing && (
+        {doc && !editing && isDiagram && (
+          <LazyDiagramCanvas key={`view-${doc.updated_at}`} value={doc.content} editable={false} />
+        )}
+        {doc && !editing && !isDiagram && (
           <DocViewer html={doc.highlighted_html ?? ""} language={doc.language} content={doc.content} />
         )}
       </div>
