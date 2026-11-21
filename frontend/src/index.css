@@ -1034,6 +1034,13 @@
   margin: 0; font-size: 46px; line-height: 1.06; font-weight: 800; letter-spacing: -1.2px;
   color: var(--color-ink); text-wrap: balance;
 }
+/* "bits" in the headline: accent colour on a soft highlighter stroke. */
+.home-accent {
+  color: var(--color-blue);
+  background: linear-gradient(transparent 62%, var(--color-blue-dim) 62%, var(--color-blue-dim) 92%, transparent 92%);
+  padding: 0 0.06em;
+  margin: 0 -0.06em;
+}
 .home-lede { margin: 0; font-size: 16px; line-height: 1.6; color: var(--color-ink-2); }
 .home-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .home-checks li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: var(--color-ink); }

@@ -98,7 +98,7 @@ export default function HomePage() {
     <div className="home">
       <div className="home-split">
         <section className="home-intro">
-          <h1>One place for the bits your team keeps sharing</h1>
+          <h1>One place for the <span className="home-accent">bits</span> your team keeps sharing</h1>
           <p className="home-lede">
             Stop digging through chat history for that one config. Put it in Clippr, share the link, and find it again later.
           </p>
