@@ -22,7 +22,6 @@ import JoinGroupPage from "./pages/group/JoinGroupPage";
 import GroupListPage from "./pages/group/GroupListPage";
 import SharedPage from "./pages/shared/SharedPage";
 import SavedPage from "./pages/saved/SavedPage";
-import TrendingPage from "./pages/trending/TrendingPage";
 import MuxPage from "./pages/mux/MuxPage";
 import NotFoundPage from "./pages/errors/NotFoundPage";
 
@@ -41,7 +40,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/search" element={<SearchPage />} />
-        <Route path="/trending" element={<TrendingPage />} />
+        {/* Trending lives at the bottom of Search now; keep old links working. */}
+        <Route path="/trending" element={<Navigate to="/search" replace />} />
         <Route path="/docs/:slug" element={<DocPage />} />
         <Route path="/join/:code" element={<JoinGroupPage />} />
 

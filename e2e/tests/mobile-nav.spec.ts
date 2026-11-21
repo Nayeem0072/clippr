@@ -22,10 +22,10 @@ test.describe("Mobile Nav", () => {
     await expect(page.locator(".mobile-nav")).toBeVisible({ timeout: 5000 });
     await expect(page.locator(".app-sidebar")).not.toBeVisible();
 
-    // New, Explore, Pastes, Shared, More
+    // New, Search, Pastes, Shared, More
     const items = page.locator(".mobile-nav .mobile-nav-item");
     await expect(items).toHaveCount(5);
-    await expect(items).toHaveText(["New", "Explore", "Pastes", "Shared", "More"]);
+    await expect(items).toHaveText(["New", "Search", "Pastes", "Shared", "More"]);
   });
 
   test("logged out: mobile nav not visible", async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("Mobile Nav", () => {
     await more.click();
     const sheet = page.getByRole("dialog", { name: "More pages" });
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("link")).toHaveText(["Trending", "Saved", "Mux", "Groups", "Settings"]);
+    await expect(sheet.getByRole("link")).toHaveText(["Saved", "Mux", "Groups", "Settings"]);
 
     await sheet.getByRole("link", { name: "Groups" }).click();
     await page.waitForURL("**/groups");
@@ -69,6 +69,6 @@ test.describe("Mobile Nav", () => {
   test("active nav item matches current route", async ({ auth, page }) => {
     await login(auth);
     await page.goto("/search");
-    await expect(page.locator(".mobile-nav-item.active")).toHaveText("Explore");
+    await expect(page.locator(".mobile-nav-item.active")).toHaveText("Search");
   });
 });

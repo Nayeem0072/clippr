@@ -13,8 +13,7 @@ One place for the bits your team keeps sharing. Paste code, configs, notes and d
 - Link previews: shared links show the code or the drawing as an image in Slack, chat apps and social sites
 
 **Finding and sharing**
-- Full-text search across pastes by title, code or diagram label
-- Trending: the most viewed public pastes this week
+- Search (`/search`): full-text search across pastes by title, code, diagram label or to-do, with results as you type and this week's most viewed public pastes underneath
 - Send a paste straight to another user; it shows up in their **Shared** inbox with a notification
 - Save the pastes you keep coming back to
 - Profile pages at `/<handle>`
