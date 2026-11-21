@@ -13,11 +13,14 @@ export function DocViewer({ html, language, content }: DocViewerProps) {
   const isLight = theme === "light";
 
   if (language === "markdown" && content) {
-    const rendered = DOMPurify.sanitize(marked.parse(content) as string);
+    // Wide tables scroll sideways in their own box instead of being cut off by the card.
+    const rendered = DOMPurify.sanitize(marked.parse(content) as string)
+      .replace(/<table>/g, '<div class="md-table-wrap" tabindex="0"><table>')
+      .replace(/<\/table>/g, "</table></div>");
     return (
       <div
         className="md-body"
-        style={{ padding: "1.5rem 2rem", color: "var(--color-ink)" }}
+        style={{ color: "var(--color-ink)" }}
         dangerouslySetInnerHTML={{ __html: rendered }}
       />
     );
