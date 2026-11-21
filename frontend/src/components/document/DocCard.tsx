@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { PrivacyBadge } from "../ui/Badge";
+import { Badge } from "../ui/Badge";
 import { formatRelative, truncate } from "../../lib/utils";
 
 const LANG_COLORS: Record<string, string> = {
@@ -40,7 +40,7 @@ export function DocCard({ slug, title, language, privacy, description, created_a
             <h3 className="text-[14px] font-medium text-ink-2 group-hover:text-ink transition-colors line-clamp-1 flex-1">
               {title}
             </h3>
-            <PrivacyBadge privacy={privacy} />
+            <Badge>{privacy}</Badge>
           </div>
 
           {excerpt ? (
@@ -55,15 +55,16 @@ export function DocCard({ slug, title, language, privacy, description, created_a
           )}
 
           <div className="flex items-center justify-between">
-            <span
-              className="text-[11px] font-mono px-1.5 py-0.5 rounded"
-              style={{ color: langColor, background: `${langColor}14` }}
-            >
-              {language}
-            </span>
+            <span className="doc-card-lang">{language}</span>
             <div className="flex items-center gap-2 text-[11px] text-ink-3">
               {weekly_views != null && weekly_views > 0 && (
-                <span style={{ color: "#f97316" }}>{weekly_views} views</span>
+                <span className="doc-card-views" title={`${weekly_views} views this week`}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.3" />
+                  </svg>
+                  {weekly_views}
+                </span>
               )}
               {owner_handle && <span>@{owner_handle}</span>}
               <span>{formatRelative(created_at)}</span>

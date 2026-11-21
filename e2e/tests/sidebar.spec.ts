@@ -15,19 +15,19 @@ test.describe("Sidebar collapse", () => {
     const sidebar = page.locator(".app-sidebar");
     await expect(sidebar).toBeVisible();
     expect((await sidebar.boundingBox())!.width).toBeGreaterThan(200);
-    await expect(sidebar.getByText("Trending", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Search", { exact: true })).toBeVisible();
 
     await sidebar.getByRole("button", { name: "Collapse menu" }).click();
     await expect(sidebar).toHaveClass(/collapsed/);
     await expect.poll(async () => (await sidebar.boundingBox())!.width).toBeLessThan(70);
 
     // Labels are hidden, but links keep their names (and tooltips) and still navigate.
-    await expect(sidebar.getByText("Trending", { exact: true })).toBeHidden();
-    const trending = sidebar.getByRole("link", { name: "Trending" });
-    await expect(trending).toBeVisible();
-    await expect(trending).toHaveAttribute("title", "Trending");
-    await trending.click();
-    await expect(page).toHaveURL(/\/trending$/);
+    await expect(sidebar.getByText("Search", { exact: true })).toBeHidden();
+    const search = sidebar.getByRole("link", { name: "Search" });
+    await expect(search).toBeVisible();
+    await expect(search).toHaveAttribute("title", "Search");
+    await search.click();
+    await expect(page).toHaveURL(/\/search$/);
 
     // Theme toggle, notifications and sign out remain reachable.
     await expect(sidebar.getByTitle(/Switch to (light|dark) theme/)).toBeVisible();
@@ -43,7 +43,7 @@ test.describe("Sidebar collapse", () => {
 
     await sidebar.getByRole("button", { name: "Expand menu" }).click();
     await expect(sidebar).not.toHaveClass(/collapsed/);
-    await expect(sidebar.getByText("Trending", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("Search", { exact: true })).toBeVisible();
   });
 
   test("mobile still uses the bottom nav", async ({ page, auth }) => {

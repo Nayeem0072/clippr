@@ -17,7 +17,7 @@ function TrendingPublicDocs() {
     <section className="home-trending">
       <div className="home-section-head">
         <h2 className="home-eyebrow">Trending this week</h2>
-        <Link to="/trending" className="home-link">See all →</Link>
+        <Link to="/search" className="home-link">See all →</Link>
       </div>
       <div className="home-trending-grid">
         {data.results.map((r) => (
@@ -109,7 +109,7 @@ export default function HomePage() {
           </ul>
           <div className="home-ctas">
             <Link to="/signup" className="btn-primary btn-lg">Get started free</Link>
-            <Link to="/search" className="btn-ghost btn-lg">Explore pastes</Link>
+            <Link to="/search" className="btn-ghost btn-lg">Search pastes</Link>
           </div>
         </section>
 

@@ -1143,3 +1143,35 @@
   .home-tile--wide { grid-column: auto; }
   .home-ctas a { flex: 1 1 auto; }
 }
+
+/* ── Paste cards: the thin left stripe is the only colour cue; badges and counts stay neutral ── */
+.doc-card-lang {
+  display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 5px; min-width: 0;
+  font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--color-ink-2);
+  background: var(--color-hover-overlay);
+}
+.doc-card-views { display: inline-flex; align-items: center; gap: 4px; color: var(--color-ink-3); }
+
+/* ── Search page: search bar, results, then trending ── */
+.search-page { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.search-page h1 { margin: 0; font-size: 22px; font-weight: 700; color: var(--color-ink); letter-spacing: -0.3px; }
+.search-form { display: flex; gap: 8px; flex-wrap: wrap; }
+.search-field { position: relative; flex: 1 1 260px; min-width: 0; }
+.search-field svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--color-ink-3); pointer-events: none; }
+.search-field input { padding-left: 38px; height: 44px; font-size: 15px; }
+.search-lang { width: 160px; height: 44px; }
+.search-results { min-height: 160px; display: flex; flex-direction: column; gap: 12px; }
+.search-hint {
+  flex: 1; display: flex; align-items: center; justify-content: center; text-align: center;
+  padding: 40px 16px; border: 1px dashed var(--color-border); border-radius: 14px;
+  font-size: 13.5px; color: var(--color-ink-3);
+}
+.search-meta { margin: 0; font-size: 13px; color: var(--color-ink-3); }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.search-pager { display: flex; justify-content: center; gap: 8px; }
+.search-trending { margin-top: 20px; padding-top: 24px; border-top: 1px solid var(--color-border-subtle); display: flex; flex-direction: column; gap: 14px; }
+.search-trending-head h2 { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-ink); }
+.search-trending-head p { margin: 3px 0 0; font-size: 13px; color: var(--color-ink-3); }
+@media (max-width: 768px) {
+  .search-lang { flex: 1 1 auto; width: auto; }
+}

@@ -32,7 +32,7 @@ test.describe("Home page (logged out)", () => {
     await expect(todo).toBeChecked();
     await expect(tiles.getByText("2 of 3 done")).toBeVisible();
 
-    await page.getByRole("link", { name: "Explore pastes" }).click();
+    await page.getByRole("link", { name: "Search pastes" }).click();
     await expect(page).toHaveURL(/\/search/);
     await page.goBack();
     await page.getByRole("link", { name: "Get started free" }).click();

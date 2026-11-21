@@ -56,7 +56,7 @@ export function Navbar() {
           </Link>
 
           <div className="hidden sm:flex items-center gap-5">
-            {navLink("/search", "Explore")}
+            {navLink("/search", "Search")}
             {isLoggedIn && navLink("/orgs/new", "Orgs")}
           </div>
         </div>
