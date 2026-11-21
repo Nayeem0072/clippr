@@ -735,6 +735,9 @@
 .diagram-canvas--tools-hidden .App-toolbar--mobile { visibility: hidden; }
 .diagram-canvas--tools-hidden .mobile-misc-tools-container > :not(.diagram-tools-toggle):not(.sidebar-trigger__label-element) { display: none; }
 .diagram-canvas--tools-hidden .App-menu_top .shapes-section { visibility: hidden; }
+/* Tool hints show briefly after picking a tool, then fade (DiagramCanvas sets the class). */
+.diagram-canvas .HintViewer { transition: opacity 0.4s ease; }
+.diagram-canvas--hint-hidden .HintViewer { opacity: 0; pointer-events: none; }
 .mux-pane-body .diagram-canvas { border: none; border-radius: 0; }
 .editor-mode-btn { flex-shrink: 0; border: 1px solid var(--color-border-subtle); }
 @media (max-width: 768px) {
