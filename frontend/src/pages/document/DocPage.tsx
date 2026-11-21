@@ -12,6 +12,9 @@ import { Modal } from "../../components/ui/Modal";
 import { PageLoader } from "../../components/ui/Spinner";
 import { useToast } from "../../components/ui/Toast";
 import { formatDate, formatRelative } from "../../lib/utils";
+import { isDiagramDoc, LazyDiagramCanvas } from "../../components/diagram";
+import { downloadDiagramPng, downloadDiagramSvg } from "../../lib/diagramExport";
+import { useTheme } from "../../hooks/useTheme";
 
 export default function DocPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,6 +26,8 @@ const [sendOpen, setSendOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
+  const [exporting, setExporting] = useState<"png" | "svg" | null>(null);
+  const { theme } = useTheme();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["doc", slug],
@@ -98,6 +103,24 @@ const [sendOpen, setSendOpen] = useState(false);
     setTimeout(() => setCopiedContent(false), 2000);
   };
 
+  const isDiagram = isDiagramDoc(doc.language);
+
+  const exportDiagram = async (kind: "png" | "svg") => {
+    setExporting(kind);
+    try {
+      const fn = kind === "png" ? downloadDiagramPng : downloadDiagramSvg;
+      await fn(doc.content, doc.title || doc.slug, theme === "dark");
+    } catch {
+      toast("Couldn't export this diagram", "error");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const downloadIcon = (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 1.5v6M3.5 5L6 7.5 8.5 5M2 9.5v.5a.5.5 0 00.5.5h7a.5.5 0 00.5-.5v-.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+  );
+
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       {/* Header */}
@@ -137,6 +160,16 @@ const [sendOpen, setSendOpen] = useState(false);
           )}
         </Button>
 
+        {isDiagram ? (
+          <>
+            <Button variant="ghost" size="sm" onClick={() => exportDiagram("png")} loading={exporting === "png"}>
+              {downloadIcon} Export PNG
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => exportDiagram("svg")} loading={exporting === "svg"}>
+              {downloadIcon} Export SVG
+            </Button>
+          </>
+        ) : (
         <Button variant="ghost" size="sm" onClick={copyContent}>
           {copiedContent ? (
             <><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg> Copied</>
@@ -144,6 +177,7 @@ const [sendOpen, setSendOpen] = useState(false);
             <><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2h6a1 1 0 011 1v6a1 1 0 01-1 1H2a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.2"/><path d="M4 2V1.5A.5.5 0 014.5 1h5a.5.5 0 01.5.5v7a.5.5 0 01-.5.5H9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg> Copy</>
           )}
         </Button>
+        )}
 
         {user && doc.privacy !== "private" && (
           <Button variant="ghost" size="sm" onClick={() => setSendOpen(true)}>
@@ -195,10 +229,12 @@ const [sendOpen, setSendOpen] = useState(false);
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
           </div>
-          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{doc.language}</span>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{isDiagram ? "excalidraw" : doc.language}</span>
         </div>
 
-        {doc.highlighted_html ? (
+        {isDiagram ? (
+          <LazyDiagramCanvas key={doc.updated_at} value={doc.content} editable={false} height="var(--diagram-view-h)" />
+        ) : doc.highlighted_html ? (
           <DocViewer html={doc.highlighted_html} language={doc.language} content={doc.content} />
         ) : (
           <pre style={{ background: "var(--color-bg)", padding: "1.5rem", fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "var(--color-ink-2)", overflowX: "auto", lineHeight: 1.75, margin: 0 }}>

@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { docsApi } from "../../api/documents";
 import { groupsApi } from "../../api/groups";
 import { useAuth } from "../../hooks/useAuth";
 import { DocEditor } from "../../components/document/DocEditor";
+import { isDiagramDoc, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
+import { buildDiagramPayload } from "../../lib/diagramExport";
 import { Button } from "../../components/ui/Button";
 import { PageLoader } from "../../components/ui/Spinner";
 import { useToast } from "../../components/ui/Toast";
@@ -34,6 +36,9 @@ export default function EditDocPage() {
     groupId: null as number | null,
   });
 
+  const isDiagram = isDiagramDoc(data?.doc.language);
+  const diagramRef = useRef<DiagramCanvasHandle>(null);
+
   useEffect(() => {
     if (data?.doc) {
       const d = data.doc;
@@ -48,14 +53,20 @@ export default function EditDocPage() {
   }, [data]);
 
   const update = useMutation({
-    mutationFn: () =>
-      docsApi.update(slug!, {
+    mutationFn: async () => {
+      const common = {
         title: form.title,
-        content: form.content,
-        language: form.language,
         privacy: form.privacy as any,
         group_id: form.privacy === "group" ? form.groupId ?? undefined : undefined,
-      }),
+      };
+      if (isDiagram) {
+        // A diagram stays a diagram: send the live scene, never a language change.
+        const json = diagramRef.current?.getJSON() ?? form.content;
+        if (isDiagramEmpty(json)) throw new Error("A diagram can't be empty");
+        return docsApi.update(slug!, { ...common, ...(await buildDiagramPayload(json)) });
+      }
+      return docsApi.update(slug!, { ...common, content: form.content, language: form.language });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["doc", slug] });
       if (user?.handle) qc.invalidateQueries({ queryKey: ["profile", user.handle] });
@@ -98,6 +109,9 @@ export default function EditDocPage() {
           groupId={form.groupId}
           userGroups={groupsData?.groups ?? []}
           onChange={(f, v) => setForm((prev) => ({ ...prev, [f]: v }))}
+          mode={isDiagram ? "diagram" : "code"}
+          diagram={isDiagram ? data.doc.content : null}
+          diagramRef={diagramRef}
         />
       </div>
     </div>

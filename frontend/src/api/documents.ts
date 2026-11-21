@@ -36,6 +36,8 @@ export const docsApi = {
     language?: string;
     privacy?: string;
     group_id?: number;
+    /** Diagram pastes only: SVG snapshot used for link-preview images. */
+    preview_svg?: string;
   }) =>
     apiFetch<{ slug: string; title: string; language: string; privacy: string; created_at: number }>(
       "/api/documents",
@@ -52,6 +54,8 @@ export const docsApi = {
     data: Partial<Pick<Document, "title" | "content" | "language" | "privacy" | "group_id">> & {
       /** Reject with 409 if the paste changed since this updated_at was loaded. */
       expected_updated_at?: number;
+      /** Diagram pastes only: SVG snapshot used for link-preview images. */
+      preview_svg?: string;
     }
   ) =>
     apiFetch<{ doc: Document }>(`/api/documents/${slug}`, {

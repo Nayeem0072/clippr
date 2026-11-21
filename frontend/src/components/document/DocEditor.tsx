@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type Ref } from "react";
 import { CodeEditor } from "../ui/CodeEditor";
 import { detectLanguage } from "../../lib/detectLanguage";
 import { Select } from "../ui/Select";
@@ -6,6 +6,9 @@ import { Input } from "../ui/Input";
 import { SUPPORTED_LANGUAGES, PRIVACY_OPTIONS } from "../../lib/constants";
 import { setDefaultLanguage, setDefaultPrivacy, setDefaultGroupId } from "../../lib/pasteDefaults";
 import type { Group } from "../../api/groups";
+import { LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
+
+export type EditorMode = "code" | "diagram";
 
 interface DocEditorProps {
   title: string;
@@ -17,11 +20,35 @@ interface DocEditorProps {
   showSetDefault?: boolean;
   onSetDefault?: () => void;
   onChange: (field: string, value: string | number | null) => void;
+  /** "diagram" swaps the code editor and language picker for a drawing canvas. */
+  mode?: EditorMode;
+  /** When given, a small icon in the top-right corner switches between text and diagram. */
+  onModeChange?: (mode: EditorMode) => void;
+  diagram?: string | null;
+  onDiagramChange?: (json: string) => void;
+  diagramRef?: Ref<DiagramCanvasHandle>;
 }
+
+const DiagramIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="1.5" y="1.5" width="5" height="4" rx="1" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="11.5" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M4 5.5v3.5a3 3 0 003 3h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+);
+
+const WriteIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <path d="M10.5 2.5l3 3L6 13H3v-3l7.5-7.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M9 4l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+);
 
 export function DocEditor({
   title, content, language, privacy, groupId, userGroups, showSetDefault, onSetDefault, onChange,
+  mode = "code", onModeChange, diagram = null, onDiagramChange, diagramRef,
 }: DocEditorProps) {
+  const isDiagram = mode === "diagram";
   const [defaultSaved, setDefaultSaved] = useState(false);
 
   function handleSetDefault() {
@@ -35,13 +62,37 @@ export function DocEditor({
 
   return (
     <div className="space-y-4">
-      <Input
-        placeholder="Untitled paste"
-        value={title}
-        onChange={(e) => onChange("title", e.target.value)}
-        className="text-[15px] font-medium bg-transparent border-transparent hover:border-border focus:!border-blue/40 px-0 rounded-none border-b"
-      />
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Input
+            placeholder={isDiagram ? "Untitled diagram" : "Untitled paste"}
+            value={title}
+            onChange={(e) => onChange("title", e.target.value)}
+            className="text-[15px] font-medium bg-transparent border-transparent hover:border-border focus:!border-blue/40 px-0 rounded-none border-b"
+          />
+        </div>
+        {onModeChange && (
+          <button
+            type="button"
+            className="mux-icon-btn editor-mode-btn"
+            onClick={() => onModeChange(isDiagram ? "code" : "diagram")}
+            title={isDiagram ? "Switch to text" : "Switch to diagram"}
+            aria-label={isDiagram ? "Switch to text" : "Switch to diagram"}
+          >
+            {isDiagram ? <WriteIcon /> : <DiagramIcon />}
+          </button>
+        )}
+      </div>
 
+      {isDiagram ? (
+        <LazyDiagramCanvas
+          ref={diagramRef}
+          value={diagram}
+          editable
+          onChange={(json) => onDiagramChange?.(json)}
+          height="var(--diagram-editor-h)"
+        />
+      ) : (
       <CodeEditor
         value={content}
         onChange={(v) => onChange("content", v)}
@@ -55,15 +106,19 @@ export function DocEditor({
           }
         }}
       />
+      )}
 
       <div className="flex flex-wrap gap-3 items-center">
-        <div className="w-40">
-          <Select
-            value={language}
-            options={SUPPORTED_LANGUAGES}
-            onChange={(e) => onChange("language", e.target.value)}
-          />
-        </div>
+        {!isDiagram && (
+          <div className="w-40">
+            <Select
+              value={language}
+              options={SUPPORTED_LANGUAGES}
+              onChange={(e) => onChange("language", e.target.value)}
+              aria-label="Language"
+            />
+          </div>
+        )}
         <div className="w-36">
           <Select
             value={privacy}

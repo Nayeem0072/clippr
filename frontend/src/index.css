@@ -636,3 +636,27 @@
   .mux-desktop-only { display: none !important; }
   .mux-pane-heading .mux-pane-meta { display: none; }
 }
+
+/* ── Diagram pastes (Excalidraw) ─────────────────────────────────────── */
+:root {
+  --diagram-editor-h: max(380px, 65vh);
+  --diagram-view-h: max(360px, 62vh);
+}
+.diagram-canvas {
+  position: relative;
+  width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+}
+/* Excalidraw sizes itself to its container. */
+.diagram-canvas .excalidraw { height: 100%; }
+.mux-pane-body .diagram-canvas { border: none; border-radius: 0; }
+.editor-mode-btn { flex-shrink: 0; border: 1px solid var(--color-border-subtle); }
+@media (max-width: 768px) {
+  :root {
+    --diagram-editor-h: max(320px, calc(100dvh - 360px));
+    --diagram-view-h: max(320px, calc(100dvh - 300px));
+  }
+  .editor-mode-btn { width: 36px; height: 36px; }
+}

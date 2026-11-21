@@ -10,3 +10,6 @@ frontend/dist/
 .claude/
 .vercel
 .env*.local
+
+# Excalidraw fonts, copied from node_modules at dev/build time
+frontend/public/excalidraw/

@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { docsApi } from "../../api/documents";
 import { groupsApi } from "../../api/groups";
-import { DocEditor } from "../../components/document/DocEditor";
+import { DocEditor, type EditorMode } from "../../components/document/DocEditor";
+import { DIAGRAM_LANGUAGE, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
+import { buildDiagramPayload } from "../../lib/diagramExport";
 import { Button } from "../../components/ui/Button";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../hooks/useAuth";
@@ -24,6 +26,12 @@ export default function NewDocPage() {
     groupId: getDefaultGroupId(),
   });
 
+  // Text and diagram drafts are kept separately, so switching modes never loses either.
+  const [mode, setMode] = useState<EditorMode>("code");
+  const [diagram, setDiagram] = useState<string | null>(null);
+  const diagramRef = useRef<DiagramCanvasHandle>(null);
+  const canSave = mode === "diagram" ? !isDiagramEmpty(diagram) : !!form.content.trim();
+
   const { data: groupsData } = useQuery({
     queryKey: ["my-groups"],
     queryFn: () => groupsApi.list(),
@@ -37,14 +45,19 @@ export default function NewDocPage() {
   });
 
   const create = useMutation({
-    mutationFn: () =>
-      docsApi.create({
+    mutationFn: async () => {
+      const common = {
         title: form.title || undefined,
-        content: form.content,
-        language: form.language,
         privacy: form.privacy,
         group_id: form.privacy === "group" ? form.groupId ?? undefined : undefined,
-      }),
+      };
+      if (mode === "diagram") {
+        const json = diagramRef.current?.getJSON() ?? diagram ?? "";
+        if (isDiagramEmpty(json)) throw new Error("Draw something first");
+        return docsApi.create({ ...common, language: DIAGRAM_LANGUAGE, ...(await buildDiagramPayload(json)) });
+      }
+      return docsApi.create({ ...common, content: form.content, language: form.language });
+    },
     onSuccess: (data) => {
       if (user?.handle) qc.invalidateQueries({ queryKey: ["profile", user.handle] });
       navigate(`/docs/${data.slug}`);
@@ -56,24 +69,28 @@ export default function NewDocPage() {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
-        if (form.content.trim() && !create.isPending) create.mutate();
+        // The canvas may hold strokes its debounced onChange hasn't reported yet.
+        const ready = mode === "diagram" ? !(diagramRef.current?.isEmpty() ?? true) : canSave;
+        if (ready && !create.isPending) create.mutate();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [form.content, create.isPending]);
+  }, [canSave, mode, create.isPending]);
 
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-ink)", margin: "0 0 4px" }}>New Paste</h1>
-          <p style={{ fontSize: 13, color: "var(--color-ink-3)", margin: 0 }}>Share code, configs, or notes</p>
+          <p style={{ fontSize: 13, color: "var(--color-ink-3)", margin: 0 }}>
+            {mode === "diagram" ? "Draw shapes, arrows and diagrams" : "Share code, configs, or notes"}
+          </p>
         </div>
         <Button
           onClick={() => create.mutate()}
           loading={create.isPending}
-          disabled={!form.content.trim()}
+          disabled={!canSave}
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <path d="M2 6.5L5.5 10L11 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
@@ -94,6 +111,15 @@ export default function NewDocPage() {
             toast("Defaults saved", "success");
           }}
           onChange={(f, v) => setForm((prev) => ({ ...prev, [f]: v }))}
+          mode={mode}
+          onModeChange={(m) => {
+            // Keep the latest strokes when leaving the canvas.
+            if (mode === "diagram" && diagramRef.current) setDiagram(diagramRef.current.getJSON());
+            setMode(m);
+          }}
+          diagram={diagram}
+          onDiagramChange={setDiagram}
+          diagramRef={diagramRef}
         />
       </div>
 
