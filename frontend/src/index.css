@@ -661,8 +661,8 @@
   .editor-mode-btn { width: 36px; height: 36px; }
 }
 
-/* ── New Paste: full-width editor, sticky header with Save ─────────────── */
-.newpaste-header {
+/* ── Paste editors (New / Edit): full-width card, sticky header with Save ── */
+.editor-header {
   position: sticky;
   top: 0;
   z-index: 30; /* above the editor and Excalidraw's toolbars */
@@ -677,20 +677,21 @@
   border-bottom: 1px solid transparent;
   transition: border-color 150ms, padding 150ms;
 }
-.newpaste-header.stuck {
+.editor-header.stuck {
   border-bottom-color: var(--color-border-subtle);
   padding-top: 12px;
   padding-bottom: 12px;
 }
-.newpaste-header > :last-child { flex-shrink: 0; }
-.newpaste-title { font-size: 20px; font-weight: 700; color: var(--color-ink); margin: 0 0 4px; }
-.newpaste-sub { font-size: 13px; color: var(--color-ink-3); margin: 0; }
-.newpaste-header.stuck .newpaste-sub { display: none; }
-.newpaste-header.stuck .newpaste-title { margin: 0; font-size: 17px; }
+.editor-header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.editor-header-title { font-size: 20px; font-weight: 700; color: var(--color-ink); margin: 0 0 4px; white-space: nowrap; }
+.editor-header-title:only-child { margin: 0; }
+.editor-header-sub { font-size: 13px; color: var(--color-ink-3); margin: 0; }
+.editor-header.stuck .editor-header-sub { display: none; }
+.editor-header.stuck .editor-header-title { margin: 0; font-size: 17px; }
 
 @media (max-width: 768px) {
-  .newpaste-header { margin: -20px -16px 16px; padding: 14px 16px 12px; }
-  .newpaste-header.stuck { padding-top: 10px; padding-bottom: 10px; }
-  .newpaste-title { font-size: 18px; margin: 0; }
-  .newpaste-sub { display: none; }
+  .editor-header { margin: -20px -16px 16px; padding: 14px 16px 12px; gap: 8px; }
+  .editor-header.stuck { padding-top: 10px; padding-bottom: 10px; }
+  .editor-header-title { font-size: 18px; margin: 0; }
+  .editor-header-sub { display: none; }
 }

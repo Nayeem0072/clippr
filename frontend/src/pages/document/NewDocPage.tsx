@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { docsApi } from "../../api/documents";
 import { groupsApi } from "../../api/groups";
 import { DocEditor, type EditorMode } from "../../components/document/DocEditor";
+import { StickyEditorHeader } from "../../components/document/StickyEditorHeader";
 import { DIAGRAM_LANGUAGE, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
 import { Button } from "../../components/ui/Button";
@@ -31,16 +32,6 @@ export default function NewDocPage() {
   const [diagram, setDiagram] = useState<string | null>(null);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
 
-  // The header (with Save) sticks to the top while scrolling; show a divider once it's stuck.
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const [stuck, setStuck] = useState(false);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting));
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
   const canSave = mode === "diagram" ? !isDiagramEmpty(diagram) : !!form.content.trim();
 
   const { data: groupsData } = useQuery({
@@ -91,15 +82,10 @@ export default function NewDocPage() {
 
   return (
     <div>
-      {/* Zero-height marker: once it scrolls out of view, the header below is stuck. */}
-      <div ref={sentinelRef} aria-hidden="true" />
-      <div className={`newpaste-header${stuck ? " stuck" : ""}`} data-testid="newpaste-header">
-        <div style={{ minWidth: 0 }}>
-          <h1 className="newpaste-title">New Paste</h1>
-          <p className="newpaste-sub">
-            {mode === "diagram" ? "Draw shapes, arrows and diagrams" : "Share code, configs, or notes"}
-          </p>
-        </div>
+      <StickyEditorHeader
+        title="New Paste"
+        subtitle={mode === "diagram" ? "Draw shapes, arrows and diagrams" : "Share code, configs, or notes"}
+      >
         <Button
           onClick={() => create.mutate()}
           loading={create.isPending}
@@ -110,7 +96,7 @@ export default function NewDocPage() {
           </svg>
           Save Paste
         </Button>
-      </div>
+      </StickyEditorHeader>
 
       <div className="pp-card" style={{ padding: 20 }}>
         <DocEditor
