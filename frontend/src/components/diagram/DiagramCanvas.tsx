@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Excalidraw, getSceneVersion, serializeAsJSON } from "@excalidraw/excalidraw";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
@@ -33,9 +34,10 @@ const TOOLS_HIDDEN_KEY = "clippr-diagram-tools-hidden";
 
 function readToolsHidden() {
   try {
-    return localStorage.getItem(TOOLS_HIDDEN_KEY) === "1";
+    // Collapsed unless the user has opened it before.
+    return localStorage.getItem(TOOLS_HIDDEN_KEY) !== "0";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -63,7 +65,7 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   onChangeRef.current = onChange;
 
   const wrapRef = useRef<HTMLDivElement>(null);
-  // Editing on wide canvases: the shape toolbar can be collapsed (remembered per browser).
+  // Editing: the shape toolbar can be collapsed (the default; remembered per browser).
   const [toolsHidden, setToolsHidden] = useState(readToolsHidden);
   const toggleTools = () =>
     setToolsHidden((hidden) => {
@@ -101,6 +103,32 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
     };
   }, [editable]);
 
+  // Compact (phone) layout: Excalidraw renders the Library/lock/hand group itself and gives
+  // custom UI no slot in it, so the toggle is portalled into that group (CSS puts it first).
+  const [mobileTools, setMobileTools] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!editable || !wrap) return;
+    const find = () => setMobileTools(wrap.querySelector<HTMLElement>(".mobile-misc-tools-container"));
+    find();
+    const mo = new MutationObserver(find);
+    mo.observe(wrap, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [editable]);
+
+  const toolsToggle = (
+    <button
+      type="button"
+      className={`diagram-tools-toggle${toolsHidden ? "" : " active"}`}
+      onClick={toggleTools}
+      aria-pressed={!toolsHidden}
+      aria-label={toolsHidden ? "Show toolbar" : "Hide toolbar"}
+      title={toolsHidden ? "Show toolbar" : "Hide toolbar"}
+    >
+      <ToolsIcon />
+    </button>
+  );
+
   const serialize = () => {
     const api = apiRef.current;
     if (!api) return value ?? "";
@@ -126,19 +154,8 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
         theme={theme}
         UIOptions={UI_OPTIONS}
         renderTopRightUI={(isMobile) =>
-          // Phones use Excalidraw's compact layout, where the toolbar sits elsewhere.
-          editable && !isMobile ? (
-            <button
-              type="button"
-              className={`diagram-tools-toggle${toolsHidden ? "" : " active"}`}
-              onClick={toggleTools}
-              aria-pressed={!toolsHidden}
-              aria-label={toolsHidden ? "Show toolbar" : "Hide toolbar"}
-              title={toolsHidden ? "Show toolbar" : "Hide toolbar"}
-            >
-              <ToolsIcon />
-            </button>
-          ) : null
+          // Phones use the compact layout: the toggle goes into its side tool group instead.
+          editable && !isMobile ? toolsToggle : null
         }
         onChange={(elements) => {
           if (!editable || !onChangeRef.current) return;
@@ -155,6 +172,7 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
           }, 300);
         }}
       />
+      {editable && mobileTools && createPortal(toolsToggle, mobileTools)}
     </div>
   );
 });
