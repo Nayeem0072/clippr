@@ -30,9 +30,14 @@ function TrendingSection() {
       )}
       {data && data.results.length > 0 && (
         <div className="search-grid">
-          {data.results.map((doc) => (
+          {data.results.map((doc, i) => (
+            <div key={doc.slug} className="search-trending-item">
+              {i < 3 && (
+                <span className="trending-rank" aria-label={`Number ${i + 1} this week`} title={`Number ${i + 1} this week`}>
+                  {i + 1}
+                </span>
+              )}
             <DocCard
-              key={doc.slug}
               slug={doc.slug}
               title={doc.title}
               language={doc.language}
@@ -41,6 +46,7 @@ function TrendingSection() {
               owner_handle={doc.owner_handle}
               weekly_views={doc.weekly_views}
             />
+            </div>
           ))}
         </div>
       )}
