@@ -1,9 +1,9 @@
 import { test, expect, uid } from "../fixtures";
 import type { Page } from "@playwright/test";
 
-async function login(auth: any, prefix: string) {
+async function login(auth: any, prefix: string): Promise<string> {
   const id = uid();
-  await auth.createAndLogin({
+  return auth.createAndLogin({
     handle: `${prefix}-${id}`.slice(0, 32), email: `${prefix}-${id}@example.com`, password: "password123", displayName: prefix,
   });
 }
@@ -20,7 +20,7 @@ async function expectSaveReachableAfterScroll(page: Page) {
   await page.locator(".cm-content").click();
   await page.keyboard.insertText(longText);
   await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
-  await expect(page.getByTestId("newpaste-header")).toHaveClass(/stuck/);
+  await expect(page.getByTestId("editor-header")).toHaveClass(/stuck/);
 
   const save = page.getByRole("button", { name: "Save Paste" });
   await expect(save).toBeInViewport();
@@ -48,10 +48,42 @@ for (const vp of [{ name: "desktop", width: 1440, height: 900 }, { name: "mobile
       expect(overflow).toBe(false);
     });
 
+    test("edit page: full-width card, and Save Changes stays at the top on a long paste", async ({ page, auth, paste }) => {
+      const token = await login(auth, "npe");
+      const long = Array.from({ length: 150 }, (_, i) => `line ${i + 1}`).join("\n");
+      const slug = await paste.createViaApi(token, { title: "Long one", content: long });
+      await page.goto(`/docs/${slug}/edit`);
+      await expect(page.getByRole("heading", { name: "Edit Paste" })).toBeVisible();
+      const col = await columnWidth(page);
+      expect(Math.abs((await page.locator(".pp-card").first().boundingBox())!.width - col)).toBeLessThan(2);
+
+      await page.locator(".app-content").evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await expect(page.getByTestId("editor-header")).toHaveClass(/stuck/);
+      const save = page.getByRole("button", { name: "Save Changes" });
+      await expect(save).toBeInViewport();
+      await expect(page.getByRole("button", { name: "Cancel" })).toBeInViewport();
+      expect((await save.boundingBox())!.y).toBeLessThan(80);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+      expect(overflow).toBe(false);
+      await save.click();
+      await expect(page).toHaveURL(new RegExp(`/docs/${slug}$`));
+    });
+
+    test("edit page: a diagram's canvas fills the content width", async ({ page, auth, paste }) => {
+      const token = await login(auth, "npd");
+      const scene = JSON.stringify({ type: "excalidraw", version: 2, source: "test", elements: [], appState: {}, files: {} });
+      const slug = await paste.createViaApi(token, { title: "Drawing", content: scene, language: "diagram" });
+      await page.goto(`/docs/${slug}/edit`);
+      await expect(page.getByRole("heading", { name: "Edit Diagram" })).toBeVisible();
+      await expect(page.getByTestId("diagram-canvas").locator(".excalidraw")).toBeVisible();
+      const col = await columnWidth(page);
+      expect(Math.abs((await page.locator(".pp-card").first().boundingBox())!.width - col)).toBeLessThan(2);
+    });
+
     test("the header with Save stays at the top while scrolling a long paste", async ({ page, auth }) => {
       await login(auth, "nps");
       await page.goto("/new");
-      await expect(page.getByTestId("newpaste-header")).not.toHaveClass(/stuck/);
+      await expect(page.getByTestId("editor-header")).not.toHaveClass(/stuck/);
       await expectSaveReachableAfterScroll(page);
     });
   });

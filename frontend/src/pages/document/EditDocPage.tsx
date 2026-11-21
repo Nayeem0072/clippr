@@ -5,6 +5,7 @@ import { docsApi } from "../../api/documents";
 import { groupsApi } from "../../api/groups";
 import { useAuth } from "../../hooks/useAuth";
 import { DocEditor } from "../../components/document/DocEditor";
+import { StickyEditorHeader } from "../../components/document/StickyEditorHeader";
 import { isDiagramDoc, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
 import { Button } from "../../components/ui/Button";
@@ -94,14 +95,11 @@ export default function EditDocPage() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>Edit Paste</h1>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button variant="ghost" onClick={() => navigate(`/docs/${slug}`)}>Cancel</Button>
-          <Button onClick={() => update.mutate()} loading={update.isPending}>Save Changes</Button>
-        </div>
-      </div>
+    <div>
+      <StickyEditorHeader title={isDiagram ? "Edit Diagram" : "Edit Paste"}>
+        <Button variant="ghost" onClick={() => navigate(`/docs/${slug}`)}>Cancel</Button>
+        <Button onClick={() => update.mutate()} loading={update.isPending}>Save Changes</Button>
+      </StickyEditorHeader>
 
       <div className="pp-card" style={{ padding: 20 }}>
         <DocEditor
