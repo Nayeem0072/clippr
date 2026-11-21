@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../hooks/useTheme";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { sendsApi } from "../../api/sends";
 import { NotificationBell } from "./NotificationBell";
@@ -17,9 +17,10 @@ function NavLink({ to, label, icon, exact }: NavItem) {
   const { pathname } = useLocation();
   const active = exact ? pathname === to : pathname === to || pathname.startsWith(to + "/");
   return (
-    <Link to={to} className={`nav-link ${active ? "active" : ""}`}>
+    // title/aria-label keep icon-only links (collapsed menu) named and give them a tooltip.
+    <Link to={to} className={`nav-link ${active ? "active" : ""}`} title={label} aria-label={label}>
       {icon}
-      {label}
+      <span className="nav-label">{label}</span>
     </Link>
   );
 }
@@ -125,18 +126,49 @@ function ThemeToggle() {
   );
 }
 
+const COLLAPSED_KEY = "clippr-sidebar-collapsed";
+
+/** Desktop menu collapsed to icons only; remembered in this browser. */
+function useSidebarCollapsed() {
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // storage unavailable
+    }
+  }, [collapsed]);
+  return [collapsed, setCollapsed] as const;
+}
+
+const CollapseIcon = ({ collapsed }: { collapsed: boolean }) => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="1.5" y="2" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M6 2v12" stroke="currentColor" strokeWidth="1.4" />
+    <path
+      d={collapsed ? "M9 6l2 2-2 2" : "M11 6L9 8l2 2"}
+      stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"
+    />
+  </svg>
+);
+
 export function Sidebar() {
   const { user, logoutAsync } = useAuth();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const toggleLabel = collapsed ? "Expand menu" : "Collapse menu";
 
   return (
-    <aside className="app-sidebar" style={{ flexDirection: "column", padding: "20px 12px" }}>
+    <aside className={`app-sidebar${collapsed ? " collapsed" : ""}`} data-collapsed={collapsed}>
       {/* Logo + theme toggle + notification bell */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, padding: "0 2px" }}>
-        <Link to="/new" style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "8px 10px", textDecoration: "none",
-        }}>
+      <div className="sidebar-head">
+        <Link to="/new" className="sidebar-logo" title="Clippr" aria-label="Clippr home">
           <div style={{
             width: 32, height: 32, borderRadius: 10,
             background: "linear-gradient(135deg, #00C4FF, #0080FF)",
@@ -149,21 +181,17 @@ export function Sidebar() {
               <path d="M5 7h6M5 9.5h6M5 12h4" stroke="rgba(0,128,255,0.7)" strokeWidth="1.1" strokeLinecap="round"/>
             </svg>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--color-ink)", letterSpacing: "-0.3px" }}>
-            Clippr
-          </span>
+          <span className="sidebar-brand">Clippr</span>
         </Link>
-        <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <div className="sidebar-head-actions">
           <ThemeToggle />
           <NotificationBell />
         </div>
       </div>
 
       {/* Nav section */}
-      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, paddingLeft: 14 }}>
-        Menu
-      </p>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 24 }}>
+      <p className="sidebar-section">Menu</p>
+      <nav aria-label="Menu" style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 24 }}>
         <NavLink to="/new" label="New Paste" icon={<PlusIcon />} exact />
         <NavLink to="/search" label="Explore" icon={<SearchIcon />} />
         <NavLink to="/trending" label="Trending" icon={<TrendingIcon />} />
@@ -173,26 +201,27 @@ export function Sidebar() {
         <NavLink to="/mux" label="Mux" icon={<MuxIcon />} />
       </nav>
 
-      <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6, paddingLeft: 14 }}>
-        Account
-      </p>
-      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <p className="sidebar-section">Account</p>
+      <nav aria-label="Account" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <NavLink to="/groups" label="Groups" icon={<OrgsIcon />} />
         <NavLink to="/settings" label="Settings" icon={<SettingsIcon />} />
       </nav>
 
-      {/* Bottom: user card */}
+      {/* Bottom: collapse toggle + user card */}
       <div style={{ marginTop: "auto" }}>
-        <div style={{
-          background: "var(--color-hover-overlay)",
-          border: "1px solid var(--color-border)",
-          borderRadius: 12,
-          padding: "10px 12px",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}>
-          <div style={{
+        <button
+          type="button"
+          className="nav-link sidebar-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          title={toggleLabel}
+          aria-label={toggleLabel}
+          aria-expanded={!collapsed}
+        >
+          <CollapseIcon collapsed={collapsed} />
+          <span className="nav-label">Collapse</span>
+        </button>
+        <div className="sidebar-user">
+          <div title={user?.display_name ?? user?.handle} style={{
             width: 32, height: 32, borderRadius: 10,
             background: "linear-gradient(135deg, #00C4FF, #0080FF)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -200,7 +229,7 @@ export function Sidebar() {
           }}>
             {(user?.handle ?? "?")[0].toUpperCase()}
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sidebar-user-text" style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-ink)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {user?.display_name ?? user?.handle}
             </p>
