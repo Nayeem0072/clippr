@@ -237,7 +237,7 @@ const [sendOpen, setSendOpen] = useState(false);
         ) : doc.highlighted_html ? (
           <DocViewer html={doc.highlighted_html} language={doc.language} content={doc.content} />
         ) : (
-          <pre style={{ background: "var(--color-bg)", padding: "1.5rem", fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "var(--color-ink-2)", overflowX: "auto", lineHeight: 1.75, margin: 0 }}>
+          <pre style={{ background: "var(--color-paste-bg)", padding: "1.5rem", fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "var(--color-ink-2)", overflowX: "auto", lineHeight: 1.75, margin: 0 }}>
             {doc.content}
           </pre>
         )}

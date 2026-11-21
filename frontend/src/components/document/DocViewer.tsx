@@ -34,7 +34,7 @@ export function DocViewer({ html, language, content }: DocViewerProps) {
   return (
     <div
       style={{
-        background: "var(--color-bg)",
+        background: "var(--color-paste-bg)",
         overflowX: "auto",
         padding: "1.5rem",
         fontFamily: "JetBrains Mono, monospace",

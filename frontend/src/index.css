@@ -26,6 +26,7 @@
 
   /* Component-specific */
   --color-input-bg:         #1C1C22;
+  --color-paste-bg:         var(--color-bg); /* behind a paste's text, like the diagram canvas */
   --color-btn-primary-text: #0A0A10;
   --color-nav-hover-bg:     rgba(255,255,255,0.05);
   --color-hover-overlay:    rgba(255,255,255,0.04);
@@ -70,6 +71,7 @@
 
   /* Component-specific */
   --color-input-bg:         #FFFFFF;
+  --color-paste-bg:         #FFFFFF;
   --color-btn-primary-text: #FFFFFF;
   --color-nav-hover-bg:     rgba(60,50,30,0.06);
   --color-hover-overlay:    rgba(60,50,30,0.04);
@@ -565,7 +567,7 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background: var(--color-bg);
+  background: var(--color-paste-bg);
 }
 .mux-pane-body .code-editor-wrapper {
   border: none;
