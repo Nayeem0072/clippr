@@ -651,6 +651,9 @@
 }
 /* Excalidraw sizes itself to its container. */
 .diagram-canvas .excalidraw { height: 100%; }
+/* No hamburger menu (find on canvas, help, reset canvas, background...): exporting and
+   saving are handled by the app, and the rest isn't needed in a paste. */
+.diagram-canvas .main-menu-trigger { display: none !important; }
 .mux-pane-body .diagram-canvas { border: none; border-radius: 0; }
 .editor-mode-btn { flex-shrink: 0; border: 1px solid var(--color-border-subtle); }
 @media (max-width: 768px) {
