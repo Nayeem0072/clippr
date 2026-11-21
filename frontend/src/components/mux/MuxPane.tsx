@@ -13,6 +13,9 @@ import { useToast } from "../ui/Toast";
 import type { SplitSide } from "../../lib/muxTree";
 import { isDiagramDoc, LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
+import { isChecklistDoc } from "../../lib/checklist";
+import { ChecklistEditor } from "../checklist/ChecklistEditor";
+import { ChecklistView } from "../checklist/ChecklistView";
 
 type DocWithOwner = Document & { owner: { handle: string; display_name: string | null } };
 
@@ -50,6 +53,7 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
   });
   const doc = data?.doc;
   const isDiagram = isDiagramDoc(doc?.language);
+  const isChecklist = isChecklistDoc(doc?.language);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
   const isOwner = !!doc && !!user && doc.owner_id === user.id;
   const editing = draft !== null;
@@ -263,13 +267,21 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
             onChange={setDraft}
           />
         )}
-        {doc && editing && !isDiagram && (
+        {doc && editing && isChecklist && (
+          <div className="mux-checklist-edit">
+            <ChecklistEditor key={`edit-${base?.updated_at}`} value={base?.content ?? doc.content} onChange={setDraft} />
+          </div>
+        )}
+        {doc && editing && !isDiagram && !isChecklist && (
           <CodeEditor value={draft ?? ""} onChange={setDraft} language={doc.language} minHeight="100%" />
         )}
         {doc && !editing && isDiagram && (
           <LazyDiagramCanvas key={`view-${doc.updated_at}`} value={doc.content} editable={false} />
         )}
-        {doc && !editing && !isDiagram && (
+        {doc && !editing && isChecklist && (
+          <ChecklistView slug={doc.slug} content={doc.content} canCheck={!!doc.can_check} />
+        )}
+        {doc && !editing && !isDiagram && !isChecklist && (
           <DocViewer html={doc.highlighted_html ?? ""} language={doc.language} content={doc.content} />
         )}
       </div>

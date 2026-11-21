@@ -4,8 +4,9 @@ import { requireAuth } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/optionalAuth.js";
 import { generateSlug } from "../lib/slug.js";
 import { highlightCode } from "../lib/highlight.js";
-import { canViewDoc } from "../lib/docAccess.js";
+import { canCheckDoc, canViewDoc } from "../lib/docAccess.js";
 import { isDiagram, sanitizePreviewSvg, validateDiagram } from "../lib/diagram.js";
+import { isChecklist, parseChecklist, serializeChecklist, validateChecklist } from "../lib/checklist.js";
 import type { Variables, AuthUser, Document } from "../types/index.js";
 
 type Vars = Variables & { user: AuthUser | null };
@@ -15,6 +16,11 @@ function publicDoc<T extends Document>(doc: T): Omit<T, "search_text" | "preview
   const { search_text: _s, preview_svg: _p, ...rest } = doc;
   return rest;
 }
+/** A paste's kind can't change after creation: a diagram stays a diagram, a checklist a checklist. */
+function pasteKind(language: string): "diagram" | "checklist" | "code" {
+  return isDiagram(language) ? "diagram" : isChecklist(language) ? "checklist" : "code";
+}
+
 const app = new Hono<{ Variables: Vars }>();
 
 // POST /api/documents
@@ -25,8 +31,14 @@ app.post("/", requireAuth, async (c) => {
 
   if (!content) return c.json({ error: "content is required" }, 400);
   let searchText: string = content;
+  let storedContent: string = content;
   let previewSvg: string | null = null;
-  if (isDiagram(language)) {
+  if (isChecklist(language)) {
+    const check = validateChecklist(content);
+    if (!check.ok) return c.json({ error: check.error }, 400);
+    storedContent = check.content;
+    searchText = check.text;
+  } else if (isDiagram(language)) {
     const check = validateDiagram(content);
     if (!check.ok) return c.json({ error: check.error }, 400);
     searchText = check.text;
@@ -47,13 +59,13 @@ app.post("/", requireAuth, async (c) => {
   }
 
   const slug = await generateSlug();
-  // Diagrams are drawn in the browser; there's nothing to syntax-highlight.
-  const highlighted_html = isDiagram(language) ? null : await highlightCode(content, language);
+  // Diagrams and checklists render in the browser; there's nothing to syntax-highlight.
+  const highlighted_html = pasteKind(language) === "code" ? await highlightCode(content, language) : null;
 
   await db.prepare(
     `INSERT INTO documents (slug, title, content, language, highlighted_html, search_text, preview_svg, privacy, group_id, owner_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(slug, title ?? "Untitled", content, language, highlighted_html, searchText, previewSvg, privacy, group_id ?? null, me.id);
+  ).run(slug, title ?? "Untitled", storedContent, language, highlighted_html, searchText, previewSvg, privacy, group_id ?? null, me.id);
 
   return c.json({ slug, title: title ?? "Untitled", language, privacy, created_at: Math.floor(Date.now() / 1000) }, 201);
 });
@@ -106,7 +118,8 @@ app.get("/:slug", optionalAuth, async (c) => {
     "SELECT handle, display_name FROM users WHERE id = ?"
   ).get(doc.owner_id);
 
-  return c.json({ doc: { ...publicDoc(doc), owner } });
+  const can_check = isChecklist(doc.language) && (await canCheckDoc(doc, me?.id ?? null));
+  return c.json({ doc: { ...publicDoc(doc), owner, can_check } });
 });
 
 // PATCH /api/documents/:slug
@@ -144,15 +157,21 @@ app.patch("/:slug", requireAuth, async (c) => {
   if (group_id !== undefined) { updates.push("group_id = ?"); values.push(group_id); }
 
   if (content !== undefined || language !== undefined) {
-    const newContent = content ?? doc.content;
+    let newContent = content ?? doc.content;
     const newLang = language ?? doc.language;
-    if (isDiagram(newLang) !== isDiagram(doc.language)) {
-      return c.json({ error: "A diagram can't be changed into a code paste, or the other way round" }, 400);
+    if (pasteKind(newLang) !== pasteKind(doc.language)) {
+      return c.json({ error: "A paste can't be changed between code, diagram and checklist" }, 400);
     }
     if (content !== undefined && !content) return c.json({ error: "content is required" }, 400);
     let html: string | null;
     let searchText: string = newContent;
-    if (isDiagram(newLang)) {
+    if (isChecklist(newLang)) {
+      const check = validateChecklist(newContent);
+      if (!check.ok) return c.json({ error: check.error }, 400);
+      html = null;
+      newContent = check.content;
+      searchText = check.text;
+    } else if (isDiagram(newLang)) {
       const check = validateDiagram(newContent);
       if (!check.ok) return c.json({ error: check.error }, 400);
       html = null;
@@ -179,6 +198,40 @@ app.patch("/:slug", requireAuth, async (c) => {
 
   const updated = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
   return c.json({ doc: publicDoc(updated!) });
+});
+
+// POST /api/documents/:slug/check — tick or untick one checklist item, without editing.
+// Changes only that item, so people ticking different items don't overwrite each other.
+app.post("/:slug/check", requireAuth, async (c) => {
+  const me = c.var.user!;
+  const { slug } = c.req.param();
+
+  const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+  if (!doc) return c.json({ error: "Not found" }, 404);
+  if (!isChecklist(doc.language)) return c.json({ error: "This paste isn't a checklist" }, 400);
+  if (!(await canCheckDoc(doc, me.id))) return c.json({ error: "Forbidden" }, 403);
+
+  const body = await c.req.json().catch(() => null);
+  const { index, checked, text } = body ?? {};
+  if (!Number.isInteger(index) || index < 0 || typeof checked !== "boolean" || typeof text !== "string") {
+    return c.json({ error: "index, checked and text are required" }, 400);
+  }
+
+  const items = parseChecklist(doc.content) ?? [];
+  // The item moved or changed: the list was edited elsewhere, so the client should reload.
+  if (items[index]?.text !== text) {
+    return c.json({ error: "This checklist was changed elsewhere", doc: publicDoc(doc) }, 409);
+  }
+
+  if (items[index].checked !== checked) {
+    items[index] = { ...items[index], checked };
+    await db
+      .prepare("UPDATE documents SET content = ?, updated_at = unixepoch() WHERE id = ?")
+      .run(serializeChecklist(items), doc.id);
+  }
+
+  const updated = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+  return c.json({ doc: { ...publicDoc(updated!), can_check: true } });
 });
 
 // DELETE /api/documents/:slug

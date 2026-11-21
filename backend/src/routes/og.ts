@@ -3,6 +3,7 @@ import { Resvg } from "@resvg/resvg-js";
 import { fileURLToPath } from "node:url";
 import { db } from "../db/client.js";
 import { diagramText, isDiagram } from "../lib/diagram.js";
+import { isChecklist, parseChecklist } from "../lib/checklist.js";
 
 // Fonts are bundled with the app (serverless hosts have no system fonts).
 // Shipped to Vercel functions via `includeFiles` in vercel.json.
@@ -45,6 +46,7 @@ const LANG_COLORS: Record<string, string> = {
   json: "#292929", yaml: "#cb171e", sql: "#e38c00", bash: "#89e051",
   sh: "#89e051", markdown: "#083fa1", dockerfile: "#384d54",
   diagram: "#00C4FF",
+  checklist: "#3FB950",
 };
 
 function langColor(lang: string) {
@@ -81,7 +83,9 @@ app.get("/image/:slug", async (c) => {
 
   const body = isDiagram(row.language)
     ? diagramBody(row.content, row.preview_svg)
-    : textLines(row.content.split("\n"));
+    : isChecklist(row.language)
+      ? textLines((parseChecklist(row.content) ?? []).map((i) => `${i.checked ? "[x]" : "[ ]"} ${i.text}`))
+      : textLines(row.content.split("\n"));
 
   return c.body(svgToPng(`<svg width="1200" height="630" viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg">
   <rect width="1200" height="630" fill="#1C1C22"/>
@@ -146,6 +150,9 @@ function diagramBody(content: string, previewSvg: string | null): string {
 
 /** Text for the meta description: the paste itself, or a diagram's labels (never its JSON). */
 function metaText(content: string, language: string): string {
+  if (isChecklist(language)) {
+    return (parseChecklist(content) ?? []).map((i) => i.text).join(", ") || "A checklist on clippr";
+  }
   if (!isDiagram(language)) return content;
   try {
     return diagramText(JSON.parse(content)?.elements) || "A diagram on clippr";

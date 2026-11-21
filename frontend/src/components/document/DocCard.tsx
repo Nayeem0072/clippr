@@ -8,6 +8,7 @@ const LANG_COLORS: Record<string, string> = {
   sql: "#F05050", html: "#F06529", css: "#5B9BD5", json: "#9A9AAF",
   markdown: "#7CACF8", yaml: "#F06060", toml: "#D4845A", dockerfile: "#4A9EF5",
   diagram: "#00C4FF",
+  checklist: "#3FB950",
 };
 
 interface DocCardProps {

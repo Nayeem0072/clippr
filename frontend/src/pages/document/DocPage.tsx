@@ -14,6 +14,8 @@ import { useToast } from "../../components/ui/Toast";
 import { formatDate, formatRelative } from "../../lib/utils";
 import { isDiagramDoc, LazyDiagramCanvas } from "../../components/diagram";
 import { downloadDiagramPng, downloadDiagramSvg } from "../../lib/diagramExport";
+import { isChecklistDoc } from "../../lib/checklist";
+import { ChecklistView } from "../../components/checklist/ChecklistView";
 import { useTheme } from "../../hooks/useTheme";
 
 export default function DocPage() {
@@ -104,6 +106,7 @@ const [sendOpen, setSendOpen] = useState(false);
   };
 
   const isDiagram = isDiagramDoc(doc.language);
+  const isChecklist = isChecklistDoc(doc.language);
 
   const exportDiagram = async (kind: "png" | "svg") => {
     setExporting(kind);
@@ -229,11 +232,15 @@ const [sendOpen, setSendOpen] = useState(false);
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
           </div>
-          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{isDiagram ? "excalidraw" : doc.language}</span>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{isDiagram ? "excalidraw" : isChecklist ? "todo" : doc.language}</span>
         </div>
 
         {isDiagram ? (
           <LazyDiagramCanvas key={doc.updated_at} value={doc.content} editable={false} height="var(--diagram-view-h)" />
+        ) : isChecklist ? (
+          <div style={{ background: "var(--color-paste-bg)" }}>
+            <ChecklistView slug={doc.slug} content={doc.content} canCheck={!!doc.can_check} />
+          </div>
         ) : doc.highlighted_html ? (
           <DocViewer html={doc.highlighted_html} language={doc.language} content={doc.content} />
         ) : (

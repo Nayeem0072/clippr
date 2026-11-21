@@ -481,3 +481,119 @@ describe("diagram pastes", () => {
     expect(r.data.results[0].excerpt).toContain(word);
   });
 });
+
+describe("checklist pastes", () => {
+  const word = `heron${uid}`;
+  const list = `- [ ] buy ${word}\n- [x] wash car\n- [ ] call mum`;
+
+  async function createList(body: Json = {}, token = alice.token) {
+    return call("POST", "/api/documents", { title: "Todo", language: "checklist", content: list, ...body }, token);
+  }
+
+  /** A group alice owns and bob belongs to. */
+  async function groupWithBob(prefix: string) {
+    const slug = `${prefix}-${uid}`;
+    expect((await call("POST", "/api/groups", { slug, name: "Checklist Group" }, alice.token)).status).toBe(201);
+    const inv = await call("POST", `/api/groups/${slug}/invites`, {}, alice.token);
+    expect((await call("POST", `/api/groups/join/${inv.data.code}`, undefined, bob.token)).status).toBe(200);
+    const g = await call("GET", `/api/groups/${slug}`, undefined, alice.token);
+    return g.data.group.id as number;
+  }
+
+  it("creates a checklist without syntax highlighting; the owner can tick", async () => {
+    const r = await createList();
+    expect(r.status).toBe(201);
+    const got = await call("GET", `/api/documents/${r.data.slug}`, undefined, alice.token);
+    expect(got.data.doc.language).toBe("checklist");
+    expect(got.data.doc.highlighted_html).toBeNull();
+    expect(got.data.doc.content).toBe(list);
+    expect(got.data.doc.can_check).toBe(true);
+    // Others viewing a public checklist can't.
+    expect((await call("GET", `/api/documents/${r.data.slug}`, undefined, bob.token)).data.doc.can_check).toBe(false);
+    expect((await call("GET", `/api/documents/${r.data.slug}`)).data.doc.can_check).toBe(false);
+  });
+
+  it("rejects content that isn't a checklist", async () => {
+    for (const content of ["just text", "- [ ] ok\nnot a task", "- [ ]   ", `- [ ] ${"x".repeat(501)}`]) {
+      expect((await createList({ content })).status).toBe(400);
+    }
+    const many = Array.from({ length: 501 }, (_, i) => `- [ ] item ${i}`).join("\n");
+    expect((await createList({ content: many })).status).toBe(400);
+  });
+
+  it("normalises line endings and blank lines", async () => {
+    const r = await createList({ content: "- [ ] a\r\n\r\n- [X] b\r\n" });
+    expect(r.status).toBe(201);
+    expect((await call("GET", `/api/documents/${r.data.slug}`)).data.doc.content).toBe("- [ ] a\n- [x] b");
+  });
+
+  it("can't change between checklist and code", async () => {
+    const { data } = await createList();
+    expect((await call("PATCH", `/api/documents/${data.slug}`, { language: "python", content: "x = 1" }, alice.token)).status).toBe(400);
+    const code = await call("POST", "/api/documents", { content: "- [ ] looks like a list" }, alice.token);
+    expect((await call("PATCH", `/api/documents/${code.data.slug}`, { language: "checklist" }, alice.token)).status).toBe(400);
+    const edit = await call("PATCH", `/api/documents/${data.slug}`, { content: "- [ ] only one" }, alice.token);
+    expect(edit.status).toBe(200);
+    expect(edit.data.doc.content).toBe("- [ ] only one");
+  });
+
+  it("indexes item text for search, never the checkbox syntax", async () => {
+    const own = `egret${uid}`;
+    await createList({ content: `- [x] feed ${own}` });
+    const hit = await call("GET", `/api/search?q=${own}`);
+    expect(hit.data.total).toBe(1);
+    expect(hit.data.results[0].excerpt).not.toContain("[x]");
+  });
+
+  it("the owner ticks and unticks one item", async () => {
+    const { data } = await createList();
+    const tick = await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: true, text: `buy ${word}` }, alice.token);
+    expect(tick.status).toBe(200);
+    expect(tick.data.doc.content).toBe(`- [x] buy ${word}\n- [x] wash car\n- [ ] call mum`);
+    const untick = await call("POST", `/api/documents/${data.slug}/check`, { index: 1, checked: false, text: "wash car" }, alice.token);
+    expect(untick.data.doc.content).toBe(`- [x] buy ${word}\n- [ ] wash car\n- [ ] call mum`);
+  });
+
+  it("group members can tick a group checklist; others can't", async () => {
+    const groupId = await groupWithBob("cl");
+    const { data } = await createList({ privacy: "group", group_id: groupId });
+    expect((await call("GET", `/api/documents/${data.slug}`, undefined, bob.token)).data.doc.can_check).toBe(true);
+    const tick = await call("POST", `/api/documents/${data.slug}/check`, { index: 2, checked: true, text: "call mum" }, bob.token);
+    expect(tick.status).toBe(200);
+    expect(tick.data.doc.content.endsWith("- [x] call mum")).toBe(true);
+    // Members can tick but not edit.
+    expect((await call("PATCH", `/api/documents/${data.slug}`, { content: "- [ ] mine" }, bob.token)).status).toBe(403);
+
+    const frank = await signup("frank");
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: true, text: `buy ${word}` }, frank.token)).status).toBe(403);
+  });
+
+  it("only the owner can tick a public checklist", async () => {
+    const { data } = await createList();
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: true, text: `buy ${word}` }, bob.token)).status).toBe(403);
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: true, text: `buy ${word}` })).status).toBe(401);
+  });
+
+  it("returns 409 when the item changed elsewhere, and 400 for bad input", async () => {
+    const { data } = await createList();
+    const stale = await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: true, text: "something else" }, alice.token);
+    expect(stale.status).toBe(409);
+    expect(stale.data.doc.content).toBe(list);
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: 9, checked: true, text: "x" }, alice.token)).status).toBe(409);
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: -1, checked: true, text: "x" }, alice.token)).status).toBe(400);
+    expect((await call("POST", `/api/documents/${data.slug}/check`, { index: 0, checked: "yes", text: "x" }, alice.token)).status).toBe(400);
+
+    const code = await call("POST", "/api/documents", { content: "x" }, alice.token);
+    expect((await call("POST", `/api/documents/${code.data.slug}/check`, { index: 0, checked: true, text: "x" }, alice.token)).status).toBe(400);
+    expect((await call("POST", `/api/documents/nope${uid}/check`, { index: 0, checked: true, text: "x" }, alice.token)).status).toBe(404);
+  });
+
+  it("renders link previews with the item text", async () => {
+    const { data } = await createList();
+    const og = await call("GET", `/api/og/image/${data.slug}.png`);
+    expect(og.status).toBe(200);
+    const html = await (await app.fetch(new Request(`http://test.local/api/og/meta/${data.slug}`))).text();
+    expect(html).toContain(`buy ${word}`);
+    expect(html).not.toContain("- [ ]");
+  });
+});

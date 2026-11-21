@@ -7,6 +7,7 @@ import { DocEditor, type EditorMode } from "../../components/document/DocEditor"
 import { StickyEditorHeader } from "../../components/document/StickyEditorHeader";
 import { DIAGRAM_LANGUAGE, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
+import { CHECKLIST_LANGUAGE, isChecklistEmpty } from "../../lib/checklist";
 import { Button } from "../../components/ui/Button";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../hooks/useAuth";
@@ -27,12 +28,14 @@ export default function NewDocPage() {
     groupId: getDefaultGroupId(),
   });
 
-  // Text and diagram drafts are kept separately, so switching modes never loses either.
+  // Text, checklist and diagram drafts are kept separately, so switching modes never loses any.
   const [mode, setMode] = useState<EditorMode>("code");
   const [diagram, setDiagram] = useState<string | null>(null);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
+  const [checklist, setChecklist] = useState("");
 
-  const canSave = mode === "diagram" ? !isDiagramEmpty(diagram) : !!form.content.trim();
+  const canSave =
+    mode === "diagram" ? !isDiagramEmpty(diagram) : mode === "checklist" ? !isChecklistEmpty(checklist) : !!form.content.trim();
 
   const { data: groupsData } = useQuery({
     queryKey: ["my-groups"],
@@ -57,6 +60,10 @@ export default function NewDocPage() {
         const json = diagramRef.current?.getJSON() ?? diagram ?? "";
         if (isDiagramEmpty(json)) throw new Error("Draw something first");
         return docsApi.create({ ...common, language: DIAGRAM_LANGUAGE, ...(await buildDiagramPayload(json)) });
+      }
+      if (mode === "checklist") {
+        if (isChecklistEmpty(checklist)) throw new Error("Add an item first");
+        return docsApi.create({ ...common, language: CHECKLIST_LANGUAGE, content: checklist });
       }
       return docsApi.create({ ...common, content: form.content, language: form.language });
     },
@@ -84,7 +91,13 @@ export default function NewDocPage() {
     <div>
       <StickyEditorHeader
         title="New Paste"
-        subtitle={mode === "diagram" ? "Draw shapes, arrows and diagrams" : "Share code, configs, or notes"}
+        subtitle={
+          mode === "diagram"
+            ? "Draw shapes, arrows and diagrams"
+            : mode === "checklist"
+              ? "A to-do list you can tick off"
+              : "Share code, configs, or notes"
+        }
       >
         <Button
           onClick={() => create.mutate()}
@@ -119,6 +132,8 @@ export default function NewDocPage() {
           diagram={diagram}
           onDiagramChange={setDiagram}
           diagramRef={diagramRef}
+          checklist={checklist}
+          onChecklistChange={setChecklist}
         />
       </div>
 
