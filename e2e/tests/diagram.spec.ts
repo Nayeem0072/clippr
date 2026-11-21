@@ -151,6 +151,33 @@ test.describe("Diagram pastes", () => {
     expect(scene.elements.some((e: any) => e.type === "text" && e.text === "from mux")).toBe(true);
   });
 
+  test("narrow Mux pane: no empty bottom bar in view mode", async ({ page, auth, paste }) => {
+    const me = await newUser(auth, "dgmbar");
+    const scene = JSON.stringify({
+      type: "excalidraw", version: 2, source: "test", files: {}, appState: {},
+      elements: [{ id: "r", type: "rectangle", x: 0, y: 0, width: 120, height: 60, version: 1, versionNonce: 1, seed: 1 }],
+    });
+    const slug = await paste.createViaApi(me.token, { title: "Narrow", content: scene, language: "diagram" });
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/mux");
+    await page.getByRole("button", { name: "+ Add paste" }).click();
+    await page.getByLabel("Paste link or slug").fill(slug);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    const pane = page.locator(`[data-testid="mux-pane"][data-slug="${slug}"]`);
+    await pane.getByRole("button", { name: "Split right" }).click();
+
+    // Half of the canvas is under Excalidraw's 730px breakpoint: compact layout.
+    const excalidraw = pane.locator(".excalidraw");
+    await expect(excalidraw).toHaveClass(/excalidraw--mobile/);
+    await expect(pane.locator(".App-bottom-bar")).toBeHidden();
+
+    // While editing, the bar is back (it holds undo/redo).
+    await pane.getByRole("button", { name: "Edit" }).click();
+    await expect(pane.locator(".App-bottom-bar")).toBeVisible();
+    await expect(pane.getByRole("button", { name: /undo/i })).toBeVisible();
+  });
+
   test("mobile: the diagram editor fits the screen", async ({ page, auth }) => {
     await page.setViewportSize({ width: 375, height: 740 });
     await newUser(auth, "dgmmob");

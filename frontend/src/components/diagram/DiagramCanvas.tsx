@@ -82,7 +82,12 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   }));
 
   return (
-    <div ref={wrapRef} className="diagram-canvas" style={{ height }} data-testid="diagram-canvas">
+    <div
+      ref={wrapRef}
+      className={`diagram-canvas${editable ? "" : " diagram-canvas--view"}`}
+      style={{ height }}
+      data-testid="diagram-canvas"
+    >
       <Excalidraw
         excalidrawAPI={(api) => (apiRef.current = api)}
         initialData={{ elements: initial.elements, appState: { ...initial.appState, viewModeEnabled: !editable }, scrollToContent: true }}
