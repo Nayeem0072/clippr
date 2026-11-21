@@ -872,3 +872,128 @@
   flex-shrink: 0;
   width: max-content;
 }
+
+/* ── Home page (logged out) ─────────────────────────────── */
+:root {
+  --home-kw: #C4B5FD;
+  --home-fn: #7DD3FC;
+  --home-num: #FCD34D;
+  --home-db: #C4B5FD;
+  --home-well: var(--color-bg);
+  --home-c1: #00C4FF;
+  --home-c2: #C4B5FD;
+  --home-c3: #FCD34D;
+  --home-avatar-ink: #0A0A10;
+}
+:root[data-theme="light"] {
+  --home-kw: #7C3AED;
+  --home-fn: #007BA8;
+  --home-num: #B45309;
+  --home-db: #7C3AED;
+  --home-well: #F4F4F6;
+  --home-c1: #007BA8;
+  --home-c2: #7C3AED;
+  --home-c3: #B45309;
+  --home-avatar-ink: #FFFFFF;
+}
+
+.home { display: flex; flex-direction: column; gap: 64px; padding: 24px 0 32px; }
+.home-split { display: flex; flex-wrap: wrap; gap: 44px; align-items: flex-start; }
+.home-intro { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 22px; padding-top: 20px; }
+/* Desktop: the pitch stays in view while the tiles scroll by (the top nav is 56px). */
+@media (min-width: 769px) { .home-intro { position: sticky; top: 80px; } }
+.home-intro h1 {
+  margin: 0; font-size: 46px; line-height: 1.06; font-weight: 800; letter-spacing: -1.2px;
+  color: var(--color-ink); text-wrap: balance;
+}
+.home-lede { margin: 0; font-size: 16px; line-height: 1.6; color: var(--color-ink-2); }
+.home-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.home-checks li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: var(--color-ink); }
+.home-check-icon { flex-shrink: 0; margin-top: 2px; color: var(--color-blue); }
+.home-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+.home-ctas a { text-decoration: none; }
+
+.home-tiles {
+  flex: 999 1 540px; min-width: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px;
+}
+.home-tile {
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 16px;
+  padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0; overflow: hidden;
+}
+.home-tile--wide { grid-column: span 2; }
+.home-tile-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--color-ink); }
+.home-tile-head p { margin: 3px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--color-ink-2); }
+.home-muted { color: var(--color-ink-2); }
+
+.home-well { background: var(--home-well); border: 1px solid var(--color-border-subtle); border-radius: 10px; }
+.home-code {
+  margin: 0; padding: 14px 16px; background: var(--home-well); border: 1px solid var(--color-border-subtle);
+  border-radius: 10px; font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.7;
+  color: var(--color-ink); overflow-x: auto;
+}
+.home-code .k { color: var(--home-kw); }
+.home-code .f { color: var(--home-fn); }
+.home-code .n { color: var(--home-num); }
+
+.home-diagram {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px; font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--color-ink);
+}
+.home-node { border: 1.5px solid var(--color-ink); border-radius: 7px; padding: 6px 14px; }
+.home-node--accent { border-color: var(--color-blue); color: var(--color-blue); }
+.home-node--db { border: 1.5px dashed var(--home-db); color: var(--home-db); border-radius: 50%; padding: 8px 16px; }
+.home-edge { width: 2px; height: 14px; background: var(--color-ink-2); }
+
+.home-privacy { display: flex; flex-direction: column; gap: 6px; }
+.home-privacy-row {
+  display: flex; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--color-ink);
+  padding: 9px 11px; border-radius: 9px; background: var(--home-well); border: 1px solid var(--color-border-subtle);
+}
+.home-privacy-row.active { background: var(--color-blue-dim); border-color: var(--color-blue-glow); }
+.home-privacy-row.active > span:first-child { color: var(--color-blue); font-weight: 600; }
+
+.home-mux {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); grid-template-rows: 64px 64px;
+  gap: 6px; padding: 6px;
+}
+.home-pane {
+  background: var(--color-surface); border-radius: 6px; padding: 9px 10px; overflow: hidden; white-space: pre;
+  font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.55; color: var(--color-ink-2);
+}
+.home-pane b { display: block; font-weight: 500; color: var(--color-ink); }
+.home-pane--tall { grid-row: span 2; }
+
+.home-members { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13.5px; }
+.home-avatars { display: flex; }
+.home-avatars span {
+  width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--home-avatar-ink); border: 2px solid var(--color-card);
+}
+.home-avatars span + span { margin-left: -6px; }
+
+.home-preview { display: flex; gap: 12px; padding: 12px; }
+.home-preview-bar { width: 3px; border-radius: 2px; background: var(--color-blue); flex-shrink: 0; }
+.home-preview-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.home-preview-text b { font-size: 13px; color: var(--color-ink); }
+.home-preview-text span {
+  font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--color-ink-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.home-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.home-eyebrow { margin: 0; font-size: 11px; font-weight: 600; color: var(--color-ink-3); text-transform: uppercase; letter-spacing: 0.1em; }
+.home-link { font-size: 12px; color: var(--color-blue); text-decoration: none; }
+.home-trending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+
+@media (max-width: 768px) {
+  .home { gap: 48px; padding-top: 8px; }
+  .home-split { gap: 32px; }
+  .home-intro { padding-top: 0; }
+  .home-intro h1 { font-size: 34px; letter-spacing: -0.8px; }
+}
+@media (max-width: 560px) {
+  .home-tiles { grid-template-columns: minmax(0, 1fr); }
+  .home-tile--wide { grid-column: auto; }
+  .home-ctas a { flex: 1 1 auto; }
+}

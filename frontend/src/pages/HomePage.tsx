@@ -1,33 +1,24 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { trendingApi } from "../api/trending";
-import { useSearch } from "../hooks/useSearch";
-import { useAuth } from "../hooks/useAuth";
 import { DocCard } from "../components/document/DocCard";
-import { Button } from "../components/ui/Button";
 
 function TrendingPublicDocs() {
   const { data } = useQuery({
     queryKey: ["trending"],
-    queryFn: () =>
-      trendingApi.list(9, 7).catch(() => ({ results: [], window_days: 7 })),
+    queryFn: () => trendingApi.list(6, 7).catch(() => ({ results: [], window_days: 7 })),
     staleTime: 5 * 60_000,
   });
 
   if (!data?.results.length) return null;
 
   return (
-    <section>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <h2 style={{ fontSize: 11, fontWeight: 600, color: "var(--color-ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>
-          Trending this week
-        </h2>
-        <Link to="/trending" style={{ fontSize: 12, color: "var(--color-blue)", textDecoration: "none" }}>
-          See all →
-        </Link>
+    <section className="home-trending">
+      <div className="home-section-head">
+        <h2 className="home-eyebrow">Trending this week</h2>
+        <Link to="/trending" className="home-link">See all →</Link>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+      <div className="home-trending-grid">
         {data.results.map((r) => (
           <DocCard key={r.slug} slug={r.slug} title={r.title} language={r.language}
             privacy={r.privacy} created_at={r.created_at} owner_handle={r.owner_handle}
@@ -38,93 +29,126 @@ function TrendingPublicDocs() {
   );
 }
 
-export default function HomePage() {
-  const [q, setQ] = useState("");
-  const { isLoggedIn } = useAuth();
-  const navigate = useNavigate();
+const Check = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="home-check-icon">
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
 
-  const search = useSearch({ q });
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (q.trim().length >= 2) navigate(`/search?q=${encodeURIComponent(q)}`);
-  };
-
+function Tile({ title, text, wide, children }: { title: string; text: string; wide?: boolean; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 48 }}>
-      {/* Hero */}
-      <section style={{ paddingTop: 48, paddingBottom: 8 }}>
-        <div style={{ marginBottom: 28 }}>
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "4px 12px", borderRadius: 999,
-            border: "1px solid rgba(0,196,255,0.2)",
-            background: "var(--color-blue-dim)",
-            fontSize: 12, color: "#00C4FF", fontWeight: 600,
-            marginBottom: 20,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#00C4FF" }} />
-            Fast · Lightweight · Yours
-          </div>
+    <div className={`home-tile${wide ? " home-tile--wide" : ""}`}>
+      <div className="home-tile-head">
+        <h3>{title}</h3>
+        <p>{text}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
 
-          <h1 style={{ fontSize: 44, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.15, margin: "0 0 12px", letterSpacing: "-0.5px" }}>
-            Share code.<br />
-            <span style={{ color: "var(--color-ink-3)" }}>Not clutter.</span>
-          </h1>
+const PRIVACY = [
+  { label: "Public", note: "Anyone with the link" },
+  { label: "Group", note: "Members only", active: true },
+  { label: "Private", note: "People you pick" },
+];
 
-          <p style={{ fontSize: 15, color: "var(--color-ink-2)", lineHeight: 1.6, margin: "0 0 28px", maxWidth: 420 }}>
-            Paste code, configs, and notes. Share with teams or the world. Syntax highlighted. Lightning fast.
+const MEMBERS = [
+  { initial: "M", color: "var(--home-c1)" },
+  { initial: "A", color: "var(--home-c2)" },
+  { initial: "K", color: "var(--home-c3)" },
+];
+
+export default function HomePage() {
+  return (
+    <div className="home">
+      <div className="home-split">
+        <section className="home-intro">
+          <h1>One place for the bits your team keeps sharing</h1>
+          <p className="home-lede">
+            Stop digging through chat history for that one config. Put it in Clippr, share the link, and find it again later.
           </p>
-
-          <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, maxWidth: 520 }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <svg style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-ink-3)", width: 16, height: 16, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search public pastes..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="pp-input"
-                style={{ paddingLeft: 38 }}
-              />
-            </div>
-            <Button type="submit" disabled={q.length < 2}>Search</Button>
-          </form>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 20 }}>
-            <Link to="/signup"><Button size="lg">Get Started</Button></Link>
-            <Link to="/new"><Button variant="ghost" size="lg">Quick Paste →</Button></Link>
+          <ul className="home-checks">
+            <li><Check />Search every paste by title, code or diagram label</li>
+            <li><Check />Send a paste straight to a teammate</li>
+            <li><Check />Save the ones you keep coming back to</li>
+          </ul>
+          <div className="home-ctas">
+            <Link to="/signup" className="btn-primary btn-lg">Get started free</Link>
+            <Link to="/search" className="btn-ghost btn-lg">Explore pastes</Link>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Live search results */}
-      {q.trim().length >= 2 && (
-        <section>
-          <h2 style={{ fontSize: 11, fontWeight: 600, color: "var(--color-ink-3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
-            {search.isLoading ? "Searching..." : `Results for "${q}" (${search.data?.total ?? 0})`}
-          </h2>
-          {search.data?.results.length === 0 && !search.isLoading ? (
-            <p style={{ color: "var(--color-ink-3)", fontSize: 14 }}>Nothing found. Try different keywords.</p>
-          ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-              {search.data?.results.map((r) => (
-                <DocCard key={r.slug} {...r} owner_handle={r.owner_handle} excerpt={r.excerpt} />
+        <section className="home-tiles" aria-label="Features">
+          <Tile title="Code that reads well" text="Highlighted when you save, in 30 languages." wide>
+            <pre className="home-code" aria-label="Example TypeScript paste">
+              <span className="k">export function</span> <span className="f">useDebounce</span>{"<T>(value: T, ms = "}<span className="n">300</span>{") {\n"}
+              {"  "}<span className="k">const</span>{" [v, setV] = useState(value);\n"}
+              {"  useEffect(() => {\n"}
+              {"    "}<span className="k">const</span>{" t = setTimeout(() => setV(value), ms);\n"}
+              {"    "}<span className="k">return</span>{" () => clearTimeout(t);\n"}
+              {"  }, [value, ms]);\n"}
+              {"  "}<span className="k">return</span>{" v;\n}"}
+            </pre>
+          </Tile>
+
+          <Tile title="Diagrams" text="Sketch boxes and arrows right in a paste.">
+            <div className="home-well home-diagram" aria-hidden="true">
+              <span className="home-node">Browser</span>
+              <span className="home-edge" />
+              <span className="home-node home-node--accent">API</span>
+              <span className="home-edge" />
+              <span className="home-node home-node--db">DB</span>
+            </div>
+          </Tile>
+
+          <Tile title="You decide who sees it" text="Set it per paste.">
+            <div className="home-privacy">
+              {PRIVACY.map((p) => (
+                <span key={p.label} className={`home-privacy-row${p.active ? " active" : ""}`}>
+                  <span>{p.label}</span>
+                  <span className="home-muted">{p.note}</span>
+                </span>
               ))}
             </div>
-          )}
-          {search.data?.has_more && (
-            <Link to={`/search?q=${encodeURIComponent(q)}`} style={{ display: "inline-block", marginTop: 14, fontSize: 13, color: "#00C4FF", textDecoration: "none" }}>
-              See all results →
-            </Link>
-          )}
+          </Tile>
+
+          <Tile title="Mux: pastes side by side" text="Split your screen into panes and edit several pastes at once." wide>
+            <div className="home-well home-mux" aria-hidden="true">
+              <div className="home-pane home-pane--tall">
+                <b>schema.sql</b>
+                {"CREATE TABLE documents (\n  id TEXT PRIMARY KEY,\n  title TEXT,\n  privacy TEXT …"}
+              </div>
+              <div className="home-pane"><b>routes.ts</b>{'app.get("/api/…'}</div>
+              <div className="home-pane"><b>notes.md</b>## TODO</div>
+            </div>
+          </Tile>
+
+          <Tile title="Groups and organizations" text="Invite with a link. Members, admins and owners.">
+            <div className="home-members">
+              <span className="home-avatars" aria-hidden="true">
+                {MEMBERS.map((m) => (
+                  <span key={m.initial} style={{ background: m.color }}>{m.initial}</span>
+                ))}
+              </span>
+              <span className="home-muted">Platform team · 3 members</span>
+            </div>
+          </Tile>
+
+          <Tile title="Links that preview" text="Paste a link in chat and the code shows up.">
+            <div className="home-well home-preview" aria-hidden="true">
+              <span className="home-preview-bar" />
+              <span className="home-preview-text">
+                <b>deploy.yml · Clippr</b>
+                <span>name: deploy on: push jobs: build …</span>
+              </span>
+            </div>
+          </Tile>
         </section>
-      )}
+      </div>
 
-      {!q && <TrendingPublicDocs />}
-
+      <TrendingPublicDocs />
     </div>
   );
 }
