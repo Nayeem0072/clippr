@@ -1175,3 +1175,15 @@
 @media (max-width: 768px) {
   .search-lang { flex: 1 1 auto; width: auto; }
 }
+
+/* Top three trending pastes: a numbered accent badge on the card's corner. */
+.search-trending-item { position: relative; min-width: 0; }
+.trending-rank {
+  position: absolute; top: -7px; left: -7px; z-index: 1;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-blue); color: var(--color-bg);
+  font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px var(--color-bg);
+  pointer-events: none;
+}

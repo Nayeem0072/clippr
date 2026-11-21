@@ -29,6 +29,12 @@ test.describe("Search page (search + trending)", () => {
     const r = (await results.boundingBox())!;
     expect((await trending.boundingBox())!.y).toBeGreaterThan(r.y + r.height - 1);
 
+    // The top three trending pastes carry 1, 2, 3 badges.
+    const ranks = page.locator(".search-trending .trending-rank");
+    if ((await page.locator(".search-trending-item").count()) >= 3) {
+      await expect(ranks).toHaveText(["1", "2", "3"]);
+    }
+
     // The old Trending page now lands here.
     await page.goto("/trending");
     await expect(page).toHaveURL(/\/search$/);
