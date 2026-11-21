@@ -7,8 +7,9 @@ import { SUPPORTED_LANGUAGES, PRIVACY_OPTIONS } from "../../lib/constants";
 import { setDefaultLanguage, setDefaultPrivacy, setDefaultGroupId } from "../../lib/pasteDefaults";
 import type { Group } from "../../api/groups";
 import { LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
+import { ChecklistEditor } from "../checklist/ChecklistEditor";
 
-export type EditorMode = "code" | "diagram";
+export type EditorMode = "code" | "diagram" | "checklist";
 
 interface DocEditorProps {
   title: string;
@@ -20,10 +21,12 @@ interface DocEditorProps {
   showSetDefault?: boolean;
   onSetDefault?: () => void;
   onChange: (field: string, value: string | number | null) => void;
-  /** "diagram" swaps the code editor and language picker for a drawing canvas. */
+  /** "diagram" / "checklist" swap the code editor and language picker for a canvas / to-do list. */
   mode?: EditorMode;
-  /** When given, a small icon in the top-right corner switches between text and diagram. */
+  /** When given, icons in the top-right corner switch between text, checklist and diagram. */
   onModeChange?: (mode: EditorMode) => void;
+  checklist?: string;
+  onChecklistChange?: (content: string) => void;
   diagram?: string | null;
   onDiagramChange?: (json: string) => void;
   diagramRef?: Ref<DiagramCanvasHandle>;
@@ -37,6 +40,15 @@ const DiagramIcon = () => (
   </svg>
 );
 
+const ChecklistIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="1.5" y="2" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M2.6 4.3l.9.9 1.5-1.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    <rect x="1.5" y="9.5" width="4.5" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M8.5 4.25h6M8.5 11.75h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+  </svg>
+);
+
 const WriteIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <path d="M10.5 2.5l3 3L6 13H3v-3l7.5-7.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -47,8 +59,15 @@ const WriteIcon = () => (
 export function DocEditor({
   title, content, language, privacy, groupId, userGroups, showSetDefault, onSetDefault, onChange,
   mode = "code", onModeChange, diagram = null, onDiagramChange, diagramRef,
+  checklist = "", onChecklistChange,
 }: DocEditorProps) {
   const isDiagram = mode === "diagram";
+  const isChecklist = mode === "checklist";
+  const modes: { mode: EditorMode; label: string; icon: JSX.Element }[] = [
+    { mode: "code", label: "Switch to text", icon: <WriteIcon /> },
+    { mode: "checklist", label: "Switch to checklist", icon: <ChecklistIcon /> },
+    { mode: "diagram", label: "Switch to diagram", icon: <DiagramIcon /> },
+  ];
   const [defaultSaved, setDefaultSaved] = useState(false);
 
   function handleSetDefault() {
@@ -65,22 +84,28 @@ export function DocEditor({
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Input
-            placeholder={isDiagram ? "Untitled diagram" : "Untitled paste"}
+            placeholder={isDiagram ? "Untitled diagram" : isChecklist ? "Untitled checklist" : "Untitled paste"}
             value={title}
             onChange={(e) => onChange("title", e.target.value)}
             className="text-[15px] font-medium bg-transparent border-transparent hover:border-border focus:!border-blue/40 px-0 rounded-none border-b"
           />
         </div>
         {onModeChange && (
-          <button
-            type="button"
-            className="mux-icon-btn editor-mode-btn"
-            onClick={() => onModeChange(isDiagram ? "code" : "diagram")}
-            title={isDiagram ? "Switch to text" : "Switch to diagram"}
-            aria-label={isDiagram ? "Switch to text" : "Switch to diagram"}
-          >
-            {isDiagram ? <WriteIcon /> : <DiagramIcon />}
-          </button>
+          <div className="editor-mode-group" role="group" aria-label="Paste type">
+            {modes.map((m) => (
+              <button
+                key={m.mode}
+                type="button"
+                className={`mux-icon-btn editor-mode-btn${mode === m.mode ? " active" : ""}`}
+                onClick={() => mode !== m.mode && onModeChange(m.mode)}
+                title={m.label}
+                aria-label={m.label}
+                aria-pressed={mode === m.mode}
+              >
+                {m.icon}
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -92,6 +117,8 @@ export function DocEditor({
           onChange={(json) => onDiagramChange?.(json)}
           height="var(--diagram-editor-h)"
         />
+      ) : isChecklist ? (
+        <ChecklistEditor value={checklist} onChange={(v) => onChecklistChange?.(v)} />
       ) : (
       <CodeEditor
         value={content}
@@ -109,7 +136,7 @@ export function DocEditor({
       )}
 
       <div className="flex flex-wrap gap-3 items-center">
-        {!isDiagram && (
+        {!isDiagram && !isChecklist && (
           <div className="w-40">
             <Select
               value={language}

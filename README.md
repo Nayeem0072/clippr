@@ -7,6 +7,7 @@ One place for the bits your team keeps sharing. Paste code, configs, notes and d
 **Pastes**
 - Syntax highlighting for 30 languages, applied on save, plus rendered Markdown
 - **Diagram pastes**: draw boxes, arrows and text with a built-in [Excalidraw](https://excalidraw.com) canvas, edit them later, and export as PNG or SVG. Switch a new paste between text and drawing with the icon in the editor's corner
+- **Checklist pastes**: a to-do list you tick off straight from the paste page, no edit mode needed. Group members can tick items on group checklists too
 - A code editor with optional Vim keybindings (Settings)
 - Who can see a paste: **public**, **group** (members only) or **private** (you and the people you share it with)
 - Link previews: shared links show the code or the drawing as an image in Slack, chat apps and social sites

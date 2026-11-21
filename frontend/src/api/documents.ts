@@ -12,6 +12,8 @@ export interface Document {
   owner_id: number;
   created_at: number;
   updated_at: number;
+  /** Checklist pastes: the viewer may tick items (owner, or group member on a group paste). */
+  can_check?: boolean;
 }
 
 export interface DocSummary {
@@ -60,6 +62,13 @@ export const docsApi = {
   ) =>
     apiFetch<{ doc: Document }>(`/api/documents/${slug}`, {
       method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  /** Tick or untick one checklist item. 409 if that item changed elsewhere. */
+  check: (slug: string, data: { index: number; checked: boolean; text: string }) =>
+    apiFetch<{ doc: Document }>(`/api/documents/${slug}/check`, {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 

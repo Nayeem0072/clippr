@@ -23,3 +23,21 @@ export async function canViewDoc(doc: Document, userId: number | null): Promise<
   }
   return false;
 }
+
+/**
+ * Who may tick checklist items without editing: the owner, and members of the paste's group
+ * when it's a group paste. Editing stays owner-only.
+ */
+export async function canCheckDoc(doc: Document, userId: number | null): Promise<boolean> {
+  if (!userId) return false;
+  if (doc.owner_id === userId) return true;
+  if (doc.privacy === "group" && doc.group_id) {
+    const member = await db
+      .query<{ user_id: number }, [number, number]>(
+        "SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?"
+      )
+      .get(doc.group_id, userId);
+    return !!member;
+  }
+  return false;
+}

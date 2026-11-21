@@ -8,6 +8,7 @@ import { DocEditor } from "../../components/document/DocEditor";
 import { StickyEditorHeader } from "../../components/document/StickyEditorHeader";
 import { isDiagramDoc, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
+import { isChecklistDoc, isChecklistEmpty } from "../../lib/checklist";
 import { Button } from "../../components/ui/Button";
 import { PageLoader } from "../../components/ui/Spinner";
 import { useToast } from "../../components/ui/Toast";
@@ -38,6 +39,7 @@ export default function EditDocPage() {
   });
 
   const isDiagram = isDiagramDoc(data?.doc.language);
+  const isChecklist = isChecklistDoc(data?.doc.language);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
 
   useEffect(() => {
@@ -65,6 +67,10 @@ export default function EditDocPage() {
         const json = diagramRef.current?.getJSON() ?? form.content;
         if (isDiagramEmpty(json)) throw new Error("A diagram can't be empty");
         return docsApi.update(slug!, { ...common, ...(await buildDiagramPayload(json)) });
+      }
+      if (isChecklist) {
+        if (isChecklistEmpty(form.content)) throw new Error("A checklist needs at least one item");
+        return docsApi.update(slug!, { ...common, content: form.content });
       }
       return docsApi.update(slug!, { ...common, content: form.content, language: form.language });
     },
@@ -96,7 +102,7 @@ export default function EditDocPage() {
 
   return (
     <div>
-      <StickyEditorHeader title={isDiagram ? "Edit Diagram" : "Edit Paste"}>
+      <StickyEditorHeader title={isDiagram ? "Edit Diagram" : isChecklist ? "Edit Checklist" : "Edit Paste"}>
         <Button variant="ghost" onClick={() => navigate(`/docs/${slug}`)}>Cancel</Button>
         <Button onClick={() => update.mutate()} loading={update.isPending}>Save Changes</Button>
       </StickyEditorHeader>
@@ -107,7 +113,9 @@ export default function EditDocPage() {
           groupId={form.groupId}
           userGroups={groupsData?.groups ?? []}
           onChange={(f, v) => setForm((prev) => ({ ...prev, [f]: v }))}
-          mode={isDiagram ? "diagram" : "code"}
+          mode={isDiagram ? "diagram" : isChecklist ? "checklist" : "code"}
+          checklist={isChecklist ? data.doc.content : ""}
+          onChecklistChange={(v) => setForm((prev) => ({ ...prev, content: v }))}
           diagram={isDiagram ? data.doc.content : null}
           diagramRef={diagramRef}
         />
