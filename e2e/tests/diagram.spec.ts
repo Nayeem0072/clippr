@@ -60,6 +60,8 @@ test.describe("Diagram pastes", () => {
     await expect(canvas(page).locator(".excalidraw")).toBeVisible();
     await expect(page.getByLabel("Language")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Save Paste" })).toBeDisabled();
+    // Excalidraw's hamburger menu is hidden.
+    await expect(canvas(page).getByTestId("main-menu-trigger")).toBeHidden();
 
     await page.getByRole("button", { name: "Switch to text" }).click();
     await expect(canvas(page)).toHaveCount(0);
@@ -81,6 +83,7 @@ test.describe("Diagram pastes", () => {
     const slug = slugFromUrl(page);
     await expect(canvas(page).locator(".excalidraw")).toBeVisible();
     await expect(page.getByText("My flow.excalidraw")).toBeVisible();
+    await expect(canvas(page).getByTestId("main-menu-trigger")).toBeHidden();
     await expect(page.getByRole("button", { name: "Copy", exact: true })).toHaveCount(0);
 
     const doc = await getDoc(page, me.token, slug);
