@@ -8,6 +8,8 @@ async function openDiagramEditor(page: Page, auth: any) {
   });
   await page.goto("/new");
   await page.getByRole("button", { name: "Switch to diagram" }).click();
+  // The toolbar starts collapsed.
+  await page.getByRole("button", { name: "Show toolbar" }).tap();
   await expect(page.locator(".App-toolbar--mobile")).toBeVisible();
 }
 

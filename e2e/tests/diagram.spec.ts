@@ -23,6 +23,9 @@ async function drawBoxWithLabel(page: Page, label: string, offset = 0) {
   const x = box.x + box.width / 2 - 40 + offset;
   const y = box.y + 120 + offset / 2;
 
+  // The toolbar starts collapsed (the choice is remembered, so it may already be open).
+  const show = c.getByRole("button", { name: "Show toolbar" });
+  if (await show.isVisible()) await show.click();
   await c.getByTitle(/^Rectangle/).click();
   await page.mouse.move(x, y);
   await page.mouse.down();
