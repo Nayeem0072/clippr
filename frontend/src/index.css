@@ -701,3 +701,84 @@
   .editor-header-title { font-size: 18px; margin: 0; }
   .editor-header-sub { display: none; }
 }
+
+/* ── Sidebar: expanded (220px) / collapsed to icons (64px) ─────────────── */
+.app-sidebar {
+  flex-direction: column;
+  padding: 20px 12px;
+  transition: width 180ms ease, padding 180ms ease;
+}
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding: 0 2px;
+}
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  text-decoration: none;
+}
+.sidebar-brand { font-size: 15px; font-weight: 700; color: var(--color-ink); letter-spacing: -0.3px; white-space: nowrap; }
+.sidebar-head-actions { display: flex; align-items: center; gap: 2px; }
+.sidebar-section {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0 0 6px;
+  padding-left: 14px;
+  white-space: nowrap;
+}
+.nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-link svg { flex-shrink: 0; }
+.sidebar-toggle {
+  width: 100%;
+  margin-bottom: 8px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: var(--color-ink-3);
+}
+.sidebar-user {
+  background: var(--color-hover-overlay);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-sidebar.collapsed { width: 64px; padding: 20px 10px; }
+.app-sidebar.collapsed .sidebar-head {
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+}
+.app-sidebar.collapsed .sidebar-logo { padding: 4px; }
+.app-sidebar.collapsed .sidebar-brand,
+.app-sidebar.collapsed .nav-label,
+.app-sidebar.collapsed .sidebar-user-text { display: none; }
+.app-sidebar.collapsed .sidebar-head-actions { flex-direction: column; gap: 4px; }
+/* Section titles become thin dividers. */
+.app-sidebar.collapsed .sidebar-section {
+  font-size: 0;
+  height: 1px;
+  margin: 2px 8px 10px;
+  padding: 0;
+  background: var(--color-border-subtle);
+}
+.app-sidebar.collapsed .nav-link { justify-content: center; padding: 10px 0; gap: 0; }
+.app-sidebar.collapsed .sidebar-user {
+  flex-direction: column;
+  padding: 8px 0;
+  gap: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar { transition: none; }
+}
