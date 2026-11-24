@@ -28,7 +28,7 @@ One place for the bits your team keeps sharing. Paste code, configs, notes and d
 - Invite links, and join requests for private groups
 
 **Everywhere**
-- Eight colour themes (four dark, four light), picked from the palette icon in the menu
+- Twelve colour themes (six dark, six light), picked from the palette icon in the menu
 - Works on phones: a bottom navigation bar with a More menu, and a touch-friendly drawing toolbar
 - A collapsible sidebar on desktop
 

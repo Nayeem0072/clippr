@@ -2,11 +2,11 @@ import { describe, it, expect } from "bun:test";
 import { THEMES, resolveTheme, themeMode } from "./themes";
 
 describe("themes", () => {
-  it("has 8 palettes with unique ids, 4 dark and 4 light", () => {
-    expect(THEMES).toHaveLength(8);
-    expect(new Set(THEMES.map((t) => t.id)).size).toBe(8);
-    expect(THEMES.filter((t) => t.mode === "dark")).toHaveLength(4);
-    expect(THEMES.filter((t) => t.mode === "light")).toHaveLength(4);
+  it("has 12 palettes with unique ids, 6 dark and 6 light", () => {
+    expect(THEMES).toHaveLength(12);
+    expect(new Set(THEMES.map((t) => t.id)).size).toBe(12);
+    expect(THEMES.filter((t) => t.mode === "dark")).toHaveLength(6);
+    expect(THEMES.filter((t) => t.mode === "light")).toHaveLength(6);
   });
   it("resolves stored values, including the old light/dark ones", () => {
     expect(resolveTheme("light")).toBe("light");
