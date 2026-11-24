@@ -30,7 +30,7 @@ test.describe("Sidebar collapse", () => {
     await expect(page).toHaveURL(/\/search$/);
 
     // Theme toggle, notifications and sign out remain reachable.
-    await expect(sidebar.getByTitle(/Switch to (light|dark) theme/)).toBeVisible();
+    await expect(sidebar.getByRole("button", { name: "Colour theme" })).toBeVisible();
     await expect(sidebar.getByTitle("Sign out")).toBeVisible();
 
     // No horizontal overflow inside the narrow rail.

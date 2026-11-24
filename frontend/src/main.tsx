@@ -1,15 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { THEME_STORAGE_KEY, resolveTheme, setThemeAttributes } from "./lib/themes";
 
-// Apply saved theme before first render to prevent flash
+// Apply the saved colour theme before first render to prevent a flash.
 (function () {
+  let stored: string | null = null;
   try {
-    if (localStorage.getItem("clippr-theme") === "light") {
-      document.documentElement.setAttribute("data-theme", "light");
-    }
+    stored = localStorage.getItem(THEME_STORAGE_KEY);
   } catch {
     // ignore
   }
+  setThemeAttributes(resolveTheme(stored));
 })();
 // Excalidraw (diagram pastes) loads its fonts from here instead of a CDN.
 // The files are copied into public/ by scripts/copy-excalidraw-assets.mjs.

@@ -9,8 +9,8 @@ interface DocViewerProps {
 }
 
 export function DocViewer({ html, language, content }: DocViewerProps) {
-  const { theme } = useTheme();
-  const isLight = theme === "light";
+  const { mode } = useTheme();
+  const isLight = mode === "light";
 
   if (language === "markdown" && content) {
     // Wide tables scroll sideways in their own box instead of being cut off by the card.

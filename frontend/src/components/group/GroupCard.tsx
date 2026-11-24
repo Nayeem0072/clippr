@@ -14,7 +14,7 @@ export function GroupCard({ group, role, memberCount }: GroupCardProps) {
       <div className="pp-card p-4 transition-all duration-200">
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-md bg-surface border border-border flex items-center justify-center text-[12px] font-bold font-mono" style={{ color: "#00C4FF" }}>
+            <div className="w-7 h-7 rounded-md bg-surface border border-border flex items-center justify-center text-[12px] font-bold font-mono" style={{ color: "var(--color-blue)" }}>
               {group.name[0].toUpperCase()}
             </div>
             <h3 className="text-[14px] font-medium text-ink-2 group-hover:text-ink transition-colors">

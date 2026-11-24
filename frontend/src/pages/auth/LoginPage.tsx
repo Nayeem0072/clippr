@@ -28,7 +28,7 @@ export default function LoginPage() {
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{
             width: 44, height: 44, borderRadius: 12,
-            background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+            background: "var(--gradient-brand)",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 16px",
           }}>
@@ -65,7 +65,7 @@ export default function LoginPage() {
 
         <p style={{ textAlign: "center", fontSize: 13, color: "var(--color-ink-3)", marginTop: 20 }}>
           Don't have an account?{" "}
-          <Link to="/signup" style={{ color: "#00C4FF", textDecoration: "none", fontWeight: 500 }}>Sign up</Link>
+          <Link to="/signup" style={{ color: "var(--color-blue)", textDecoration: "none", fontWeight: 500 }}>Sign up</Link>
         </p>
       </div>
     </div>

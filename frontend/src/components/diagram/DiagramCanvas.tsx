@@ -57,7 +57,7 @@ const DiagramCanvas = forwardRef<DiagramCanvasHandle, DiagramCanvasProps>(functi
   { value, editable, onChange, height = "100%" },
   ref
 ) {
-  const { theme } = useTheme();
+  const { mode: theme } = useTheme();
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   // The scene is only read on mount; callers remount (key) to show a different saved version.
   const initial = useMemo(() => parseScene(value), []); // eslint-disable-line react-hooks/exhaustive-deps

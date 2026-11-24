@@ -43,7 +43,7 @@ export default function ProfilePage() {
       <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
         <div style={{
           width: 64, height: 64, borderRadius: 18,
-          background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+          background: "var(--gradient-brand)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 26, fontWeight: 700, color: "#0A0A14", flexShrink: 0,
         }}>

@@ -162,7 +162,7 @@ export default function GroupInvitesPage() {
                   >
                     <div style={{
                       width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                      background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+                      background: "var(--gradient-brand)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: 11, fontWeight: 700, color: "#0A0A14",
                     }}>
@@ -214,7 +214,7 @@ export default function GroupInvitesPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                  background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+                  background: "var(--gradient-brand)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 12, fontWeight: 700, color: "#fff",
                 }}>
@@ -260,7 +260,7 @@ export default function GroupInvitesPage() {
               <div key={inv.id} className="pp-card" style={{ padding: "14px 16px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <code style={{ fontSize: 13, fontFamily: "monospace", color: "#00C4FF", wordBreak: "break-all", display: "block" }}>
+                    <code style={{ fontSize: 13, fontFamily: "monospace", color: "var(--color-blue)", wordBreak: "break-all", display: "block" }}>
                       {window.location.origin}/join/{inv.code}
                     </code>
                     <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--color-ink-3)", marginTop: 6 }}>

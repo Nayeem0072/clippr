@@ -59,7 +59,7 @@ const fontTheme = EditorView.theme({
 
 export function CodeEditor({ value, onChange, language, placeholder, minHeight, onPaste }: CodeEditorProps) {
   const [isDark, setIsDark] = useState(
-    () => document.documentElement.getAttribute("data-theme") !== "light"
+    () => document.documentElement.getAttribute("data-mode") !== "light"
   );
   const [vimMode, setVimMode] = useState(
     () => localStorage.getItem("clippr-vim-mode") === "true"
@@ -67,9 +67,9 @@ export function CodeEditor({ value, onChange, language, placeholder, minHeight, 
 
   useEffect(() => {
     const themeObserver = new MutationObserver(() => {
-      setIsDark(document.documentElement.getAttribute("data-theme") !== "light");
+      setIsDark(document.documentElement.getAttribute("data-mode") !== "light");
     });
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode"] });
 
     const storageHandler = (e: StorageEvent) => {
       if (e.key === "clippr-vim-mode") setVimMode(e.newValue === "true");

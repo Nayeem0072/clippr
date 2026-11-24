@@ -41,7 +41,7 @@ export default function OrgPage() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <div style={{
               width: 40, height: 40, borderRadius: 12,
-              background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+              background: "var(--gradient-brand)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 18, fontWeight: 700, color: "#fff",
             }}>

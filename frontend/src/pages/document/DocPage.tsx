@@ -29,7 +29,7 @@ const [sendOpen, setSendOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [exporting, setExporting] = useState<"png" | "svg" | null>(null);
-  const { theme } = useTheme();
+  const { mode: theme } = useTheme();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["doc", slug],
@@ -87,7 +87,7 @@ const [sendOpen, setSendOpen] = useState(false);
     <div className="text-center py-20">
       <p className="text-2xl font-display font-bold text-ink-2 mb-2">404</p>
       <p className="text-ink-3 text-sm">{(error as any).message}</p>
-      <Link to="/" style={{ color: "#00C4FF", fontSize: 14, marginTop: 12, display: "inline-block", textDecoration: "none" }}>← Back home</Link>
+      <Link to="/" style={{ color: "var(--color-blue)", fontSize: 14, marginTop: 12, display: "inline-block", textDecoration: "none" }}>← Back home</Link>
     </div>
   );
 
