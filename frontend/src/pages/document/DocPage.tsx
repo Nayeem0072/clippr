@@ -51,7 +51,7 @@ const [sendOpen, setSendOpen] = useState(false);
   const { data: savedData } = useQuery({
     queryKey: ["saved-check", slug],
     queryFn: () => savedApi.checkSaved(slug!),
-    enabled: !!user && !isOwner,
+    enabled: !!user && !!data,
     staleTime: 30_000,
   });
   const isSaved = savedData?.is_saved ?? false;
@@ -192,7 +192,7 @@ const [sendOpen, setSendOpen] = useState(false);
           </Button>
         )}
 
-        {user && !isOwner && doc.privacy !== "private" && (
+        {user && (
           <Button
             variant="ghost"
             size="sm"
