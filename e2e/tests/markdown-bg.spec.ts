@@ -1,19 +1,16 @@
 import { test, expect, uid } from "../fixtures";
 
 // A Markdown paste sits on the same paste surface as code, a step lighter than the page:
-// white on light themes, a slightly lighter shade on dark ones.
+// white on light themes, a slightly lighter shade on dark ones. (Picker themes only: hidden
+// ones resolve to Dark/Light.)
 const SURFACE: Record<string, string> = {
   light: "rgb(255, 255, 255)",
   sand: "rgb(255, 255, 255)",
-  rose: "rgb(255, 255, 255)",
   dark: "rgb(35, 35, 43)",
   midnight: "rgb(21, 29, 49)",
-  forest: "rgb(23, 33, 28)",
-  plum: "rgb(34, 26, 41)",
   charcoal: "rgb(34, 33, 30)",
   espresso: "rgb(26, 25, 23)",
   lavender: "rgb(255, 255, 255)",
-  peach: "rgb(255, 255, 255)",
 };
 
 function lum(rgb: string) {

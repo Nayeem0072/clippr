@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
-import { THEMES, type ThemeInfo } from "../../lib/themes";
+import { PICKER_THEMES, THEMES, type ThemeInfo } from "../../lib/themes";
 
 const PaletteIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -128,7 +128,7 @@ export function ThemePicker({ className = "theme-picker-btn" }: { className?: st
               <div key={mode} role="group" aria-label={mode === "dark" ? "Dark themes" : "Light themes"}>
                 <p className="theme-menu-label" aria-hidden="true">{mode === "dark" ? "Dark" : "Light"}</p>
                 <div className="theme-menu-grid">
-                  {THEMES.filter((t) => t.mode === mode).map((t) => (
+                  {PICKER_THEMES.filter((t) => t.mode === mode).map((t) => (
                     <button
                       key={t.id}
                       type="button"

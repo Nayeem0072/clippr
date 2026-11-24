@@ -24,33 +24,33 @@ const openMenu = async (page: Page) => {
 test.describe("Colour themes", () => {
   test.use({ viewport: { width: 1280, height: 860 } });
 
-  test("the picker lists 12 themes and applies one at once; it's remembered", async ({ page, auth }) => {
+  test("the picker lists 8 themes and applies one at once; it's remembered", async ({ page, auth }) => {
     await login(auth, "th");
     await page.evaluate(() => localStorage.removeItem("clippr-theme"));
     await page.goto("/new");
 
     const menu = await openMenu(page);
     const options = menu.getByRole("menuitemradio");
-    await expect(options).toHaveText(["Dark", "Midnight", "Forest", "Plum", "Charcoal", "Espresso", "Light", "Sand", "Mint", "Rose", "Lavender", "Peach"]);
+    await expect(options).toHaveText(["Dark", "Midnight", "Charcoal", "Espresso", "Light", "Sand", "Mint", "Lavender"]);
     await expect(menu.getByRole("menuitemradio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
 
-    await menu.getByRole("menuitemradio", { name: "Forest" }).click();
+    await menu.getByRole("menuitemradio", { name: "Midnight" }).click();
     const html = page.locator("html");
-    await expect(html).toHaveAttribute("data-theme", "forest");
+    await expect(html).toHaveAttribute("data-theme", "midnight");
     await expect(html).toHaveAttribute("data-mode", "dark");
-    expect(await bodyBg(page)).toBe("rgb(18, 26, 22)"); // #121A16
-    // The accent follows: the primary button uses Forest's mint.
+    expect(await bodyBg(page)).toBe("rgb(15, 22, 38)"); // #0F1626
+    // The accent follows: the primary button uses Midnight's blue.
     const save = page.getByRole("button", { name: "Save Paste" });
     // (The button animates its colour, so wait for it to settle.)
-    await expect.poll(() => save.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(74, 222, 158)");
+    await expect.poll(() => save.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe("rgb(90, 176, 255)");
     // The menu stays open to try others; Escape closes it.
-    await expect(menu.getByRole("menuitemradio", { name: "Forest" })).toHaveAttribute("aria-checked", "true");
+    await expect(menu.getByRole("menuitemradio", { name: "Midnight" })).toHaveAttribute("aria-checked", "true");
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
 
     await page.reload();
-    await expect(html).toHaveAttribute("data-theme", "forest");
-    expect(await bodyBg(page)).toBe("rgb(18, 26, 22)");
+    await expect(html).toHaveAttribute("data-theme", "midnight");
+    expect(await bodyBg(page)).toBe("rgb(15, 22, 38)");
 
     // Clicking outside closes it too.
     await openMenu(page);
@@ -74,7 +74,7 @@ test.describe("Colour themes", () => {
     await expect.poll(async () => luminance(await textColour())).toBeLessThan(100);
     expect(await bodyBg(page)).toBe("rgb(250, 246, 239)"); // #FAF6EF
 
-    await menu.getByRole("menuitemradio", { name: "Plum" }).click();
+    await menu.getByRole("menuitemradio", { name: "Charcoal" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-mode", "dark");
     await expect.poll(async () => luminance(await textColour())).toBeGreaterThan(150);
   });
@@ -86,6 +86,16 @@ test.describe("Colour themes", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator("html")).toHaveAttribute("data-mode", "light");
     expect(await bodyBg(page)).toBe("rgb(249, 248, 246)");
+  });
+
+  test("a browser that saved a hidden theme opens in the plain theme of its mode", async ({ page, auth }) => {
+    await login(auth, "thh");
+    for (const [saved, shown] of [["forest", "dark"], ["plum", "dark"], ["rose", "light"], ["peach", "light"]]) {
+      await page.evaluate((t) => localStorage.setItem("clippr-theme", t), saved);
+      await page.goto("/new");
+      await expect(page.locator("html")).toHaveAttribute("data-theme", shown);
+      await expect(page.locator("html")).toHaveAttribute("data-mode", shown);
+    }
   });
 
   test("works from the collapsed sidebar without being clipped", async ({ page, auth }) => {
@@ -106,8 +116,8 @@ test.describe("Colour themes", () => {
     await page.evaluate(() => localStorage.removeItem("auth_token"));
     await page.goto("/");
     const menu = await openMenu(page);
-    await menu.getByRole("menuitemradio", { name: "Rose" }).click();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "rose");
+    await menu.getByRole("menuitemradio", { name: "Lavender" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "lavender");
   });
 });
 
@@ -122,7 +132,7 @@ test.describe("Colour themes (phone)", () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(375);
     expect(box.y + box.height).toBeLessThanOrEqual(760);
-    await menu.getByRole("menuitemradio", { name: "Peach" }).tap();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "peach");
+    await menu.getByRole("menuitemradio", { name: "Mint" }).tap();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "mint");
   });
 });
