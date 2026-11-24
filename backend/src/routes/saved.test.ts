@@ -66,11 +66,11 @@ function buildDb() {
 function save(db: Database, userId: number, docSlug: string): { status: number; body: any } {
   const doc = db.query<any, [string]>("SELECT * FROM documents WHERE slug = ?").get(docSlug);
   if (!doc) return { status: 404, body: { error: "Not found" } };
-  if (doc.owner_id === userId) return { status: 400, body: { error: "Cannot save your own paste" } };
 
   // canViewDoc inline
   const canView = (() => {
     if (doc.privacy === "public") return true;
+    if (doc.owner_id === userId) return true;
     if (doc.privacy === "group" && doc.group_id) {
       return !!db.query<any, [number, number]>("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?").get(doc.group_id, userId);
     }
@@ -80,7 +80,6 @@ function save(db: Database, userId: number, docSlug: string): { status: number; 
     return false;
   })();
   if (!canView) return { status: 403, body: { error: "Forbidden" } };
-  if (doc.privacy === "private") return { status: 400, body: { error: "Cannot save a private paste" } };
 
   const result = db.prepare("INSERT OR IGNORE INTO saved_pastes (user_id, doc_id) VALUES (?, ?)").run(userId, doc.id);
   if (result.changes === 0) return { status: 409, body: { error: "Already saved" } };
@@ -89,19 +88,20 @@ function save(db: Database, userId: number, docSlug: string): { status: number; 
 
 // Mirrors the list query with dynamic access filter
 function listSaved(db: Database, userId: number): any[] {
-  return db.query<any, [number, number, number]>(`
+  return db.query<any, [number, number, number, number]>(`
     SELECT d.slug, d.title, d.privacy, d.group_id
     FROM saved_pastes sp
     JOIN documents d ON sp.doc_id = d.id
     WHERE sp.user_id = ?
       AND (
-        d.privacy = 'public'
+        d.owner_id = ?
+        OR d.privacy = 'public'
         OR (d.privacy = 'group' AND d.group_id IS NOT NULL
             AND EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = d.group_id AND gm.user_id = ?))
         OR (d.privacy = 'private' AND EXISTS (SELECT 1 FROM document_shares ds2 WHERE ds2.doc_id = d.id AND ds2.user_id = ?))
       )
     ORDER BY sp.saved_at DESC
-  `).all(userId, userId, userId);
+  `).all(userId, userId, userId, userId);
 }
 
 function checkSaved(db: Database, userId: number, slug: string): boolean {
@@ -135,11 +135,19 @@ describe("saved pastes", () => {
     expect(db.query<any,[number,number]>("SELECT 1 FROM saved_pastes WHERE user_id=? AND doc_id=?").get(bobId, docId)).toBeTruthy();
   });
 
-  it("cannot save own paste", () => {
+  it("saves own paste, including private ones", () => {
     db.prepare("INSERT INTO documents (slug,title,content,privacy,owner_id) VALUES (?,?,?,?,?)").run("my-1","My","c","public",aliceId);
-    const res = save(db, aliceId, "my-1");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/own/);
+    db.prepare("INSERT INTO documents (slug,title,content,privacy,owner_id) VALUES (?,?,?,?,?)").run("my-2","Mine","c","private",aliceId);
+    expect(save(db, aliceId, "my-1").status).toBe(201);
+    expect(save(db, aliceId, "my-2").status).toBe(201);
+    expect(listSaved(db, aliceId).map((d) => d.slug).sort()).toEqual(["my-1", "my-2"]);
+    expect(listSaved(db, bobId)).toHaveLength(0);
+  });
+
+  it("saves own group paste and keeps it listed without group membership", () => {
+    db.prepare("INSERT INTO documents (slug,title,content,privacy,group_id,owner_id) VALUES (?,?,?,?,?,?)").run("my-grp","G","c","group",groupId,bobId);
+    expect(save(db, bobId, "my-grp").status).toBe(201);
+    expect(listSaved(db, bobId)).toHaveLength(1);
   });
 
   it("saves a group paste as a group member", () => {
@@ -155,16 +163,19 @@ describe("saved pastes", () => {
     expect(res.status).toBe(403);
   });
 
-  it("cannot save a private paste", () => {
+  it("cannot save someone else's private paste that isn't shared with you", () => {
+    db.prepare("INSERT INTO documents (slug,title,content,privacy,owner_id) VALUES (?,?,?,?,?)").run("priv-0","P","c","private",aliceId);
+    expect(save(db, bobId, "priv-0").status).toBe(403);
+  });
+
+  it("saves a private paste shared with you; it drops off the list when the share is removed", () => {
     db.prepare("INSERT INTO documents (slug,title,content,privacy,owner_id) VALUES (?,?,?,?,?)").run("priv-1","P","c","private",aliceId);
-    // Even if shared, saving private pastes is blocked
-    db.prepare("INSERT INTO document_shares (doc_id,user_id,shared_by) VALUES (?,?,?)").run(
-      db.query<{id:number},[string]>("SELECT id FROM documents WHERE slug=?").get("priv-1")!.id,
-      bobId, aliceId
-    );
-    const res = save(db, bobId, "priv-1");
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/private/);
+    const docId = db.query<{id:number},[string]>("SELECT id FROM documents WHERE slug=?").get("priv-1")!.id;
+    db.prepare("INSERT INTO document_shares (doc_id,user_id,shared_by) VALUES (?,?,?)").run(docId, bobId, aliceId);
+    expect(save(db, bobId, "priv-1").status).toBe(201);
+    expect(listSaved(db, bobId)).toHaveLength(1);
+    db.prepare("DELETE FROM document_shares WHERE doc_id=? AND user_id=?").run(docId, bobId);
+    expect(listSaved(db, bobId)).toHaveLength(0);
   });
 
   it("returns 409 on duplicate save", () => {

@@ -294,10 +294,46 @@ describe("sends + saved", () => {
 
     expect((await call("POST", "/api/saved", { slug: data.slug }, bob.token)).status).toBe(201);
     expect((await call("POST", "/api/saved", { slug: data.slug }, bob.token)).status).toBe(409);
-    expect((await call("POST", "/api/saved", { slug: data.slug }, alice.token)).status).toBe(400); // own paste
     expect((await call("GET", `/api/saved/check/${data.slug}`, undefined, bob.token)).data.is_saved).toBe(true);
     const saved = await call("GET", "/api/saved", undefined, bob.token);
     expect(saved.data.pastes.map((p: Json) => p.slug)).toContain(data.slug);
+  });
+
+  it("lets the owner save their own pastes, private ones included", async () => {
+    const pub = await call("POST", "/api/documents", { content: "mine, public" }, alice.token);
+    const priv = await call("POST", "/api/documents", { content: "mine, private", privacy: "private" }, alice.token);
+
+    expect((await call("POST", "/api/saved", { slug: pub.data.slug }, alice.token)).status).toBe(201);
+    expect((await call("POST", "/api/saved", { slug: priv.data.slug }, alice.token)).status).toBe(201);
+    expect((await call("POST", "/api/saved", { slug: priv.data.slug }, alice.token)).status).toBe(409);
+    expect((await call("GET", `/api/saved/check/${priv.data.slug}`, undefined, alice.token)).data.is_saved).toBe(true);
+
+    const mine = await call("GET", "/api/saved", undefined, alice.token);
+    const slugs = mine.data.pastes.map((p: Json) => p.slug);
+    expect(slugs).toContain(pub.data.slug);
+    expect(slugs).toContain(priv.data.slug);
+
+    // Someone else's saved list is unaffected, and they can't save the private one.
+    const bobs = await call("GET", "/api/saved", undefined, bob.token);
+    expect(bobs.data.pastes.map((p: Json) => p.slug)).not.toContain(priv.data.slug);
+    expect((await call("POST", "/api/saved", { slug: priv.data.slug }, bob.token)).status).toBe(403);
+
+    expect((await call("DELETE", `/api/saved/${priv.data.slug}`, undefined, alice.token)).status).toBe(200);
+    expect((await call("GET", `/api/saved/check/${priv.data.slug}`, undefined, alice.token)).data.is_saved).toBe(false);
+  });
+
+  it("saves a private paste shared with you, and drops it when the share goes away", async () => {
+    const priv = await call("POST", "/api/documents", { content: "secret", privacy: "private" }, alice.token);
+    expect((await call("POST", "/api/saved", { slug: priv.data.slug }, bob.token)).status).toBe(403);
+
+    const share = await call("POST", `/api/documents/${priv.data.slug}/shares`, { handle_or_email: handle("bob") }, alice.token);
+    expect(share.status).toBe(200);
+    expect((await call("POST", "/api/saved", { slug: priv.data.slug }, bob.token)).status).toBe(201);
+    expect((await call("GET", "/api/saved", undefined, bob.token)).data.pastes.map((p: Json) => p.slug)).toContain(priv.data.slug);
+
+    const unshare = await call("DELETE", `/api/documents/${priv.data.slug}/shares/${bob.user.id}`, undefined, alice.token);
+    expect(unshare.status).toBe(200);
+    expect((await call("GET", "/api/saved", undefined, bob.token)).data.pastes.map((p: Json) => p.slug)).not.toContain(priv.data.slug);
   });
 });
 

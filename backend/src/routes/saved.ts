@@ -16,9 +16,9 @@ app.post("/", requireAuth, (c) => {
     const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
     if (!doc) return c.json({ error: "Not found" }, 404);
 
-    if (doc.owner_id === me.id) return c.json({ error: "Cannot save your own paste" }, 400);
+    // Anyone who can view a paste may save it: their own pastes (any privacy), and private
+    // pastes shared with them. The list below drops it again if they lose access.
     if (!await canViewDoc(doc, me.id)) return c.json({ error: "Forbidden" }, 403);
-    if (doc.privacy === "private") return c.json({ error: "Cannot save a private paste" }, 400);
 
     const result = await db
       .prepare("INSERT OR IGNORE INTO saved_pastes (user_id, doc_id) VALUES (?, ?)")
@@ -75,7 +75,8 @@ app.get("/", requireAuth, async (c) => {
   // Dynamic access filter — mirrors canViewDoc but as inline SQL to avoid N+1.
   // Rule: group pastes disappear automatically when user leaves the group.
   const accessFilter = `(
-    d.privacy = 'public'
+    d.owner_id = ?
+    OR d.privacy = 'public'
     OR (
       d.privacy = 'group'
       AND d.group_id IS NOT NULL
@@ -106,7 +107,7 @@ app.get("/", requireAuth, async (c) => {
   };
 
   const pastes = await db
-    .query<SavedRow, [number, number, number, string | null, string | null, string | null, number, number]>(
+    .query<SavedRow, [number, number, number, number, string | null, string | null, string | null, number, number]>(
       `SELECT
          sp.saved_at,
          d.slug,
@@ -126,10 +127,10 @@ app.get("/", requireAuth, async (c) => {
        ORDER BY sp.saved_at DESC
        LIMIT ? OFFSET ?`
     )
-    .all(me.id, me.id, me.id, filter, filter, filter, limit, offset);
+    .all(me.id, me.id, me.id, me.id, filter, filter, filter, limit, offset);
 
   const { cnt } = (await db
-    .query<{ cnt: number }, [number, number, number, string | null, string | null, string | null]>(
+    .query<{ cnt: number }, [number, number, number, number, string | null, string | null, string | null]>(
       `SELECT COUNT(*) AS cnt
        FROM saved_pastes sp
        JOIN documents d ON sp.doc_id  = d.id
@@ -138,7 +139,7 @@ app.get("/", requireAuth, async (c) => {
          AND ${accessFilter}
          AND (? IS NULL OR d.title LIKE ? OR u.handle LIKE ?)`
     )
-    .get(me.id, me.id, me.id, filter, filter, filter))!;
+    .get(me.id, me.id, me.id, me.id, filter, filter, filter))!;
 
   return c.json({ pastes, page, limit, total: cnt, has_more: offset + pastes.length < cnt });
 });
