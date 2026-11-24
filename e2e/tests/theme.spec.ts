@@ -24,14 +24,14 @@ const openMenu = async (page: Page) => {
 test.describe("Colour themes", () => {
   test.use({ viewport: { width: 1280, height: 860 } });
 
-  test("the picker lists 8 themes and applies one at once; it's remembered", async ({ page, auth }) => {
+  test("the picker lists 12 themes and applies one at once; it's remembered", async ({ page, auth }) => {
     await login(auth, "th");
     await page.evaluate(() => localStorage.removeItem("clippr-theme"));
     await page.goto("/new");
 
     const menu = await openMenu(page);
     const options = menu.getByRole("menuitemradio");
-    await expect(options).toHaveText(["Dark", "Midnight", "Forest", "Plum", "Light", "Sand", "Mint", "Rose"]);
+    await expect(options).toHaveText(["Dark", "Midnight", "Forest", "Plum", "Charcoal", "Espresso", "Light", "Sand", "Mint", "Rose", "Lavender", "Peach"]);
     await expect(menu.getByRole("menuitemradio", { name: "Dark" })).toHaveAttribute("aria-checked", "true");
 
     await menu.getByRole("menuitemradio", { name: "Forest" }).click();
@@ -122,7 +122,7 @@ test.describe("Colour themes (phone)", () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(375);
     expect(box.y + box.height).toBeLessThanOrEqual(760);
-    await menu.getByRole("menuitemradio", { name: "Mint" }).tap();
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "mint");
+    await menu.getByRole("menuitemradio", { name: "Peach" }).tap();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "peach");
   });
 });

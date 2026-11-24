@@ -10,6 +10,10 @@ const SURFACE: Record<string, string> = {
   midnight: "rgb(21, 29, 49)",
   forest: "rgb(23, 33, 28)",
   plum: "rgb(34, 26, 41)",
+  charcoal: "rgb(34, 33, 30)",
+  espresso: "rgb(26, 25, 23)",
+  lavender: "rgb(255, 255, 255)",
+  peach: "rgb(255, 255, 255)",
 };
 
 function lum(rgb: string) {
