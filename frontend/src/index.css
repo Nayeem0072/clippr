@@ -31,7 +31,7 @@
 
   /* Component-specific */
   --color-input-bg:         #1C1C22;
-  --color-paste-bg:         var(--color-bg); /* behind a paste's text, like the diagram canvas */
+  --color-paste-bg:         #23232B; /* behind a paste: a step lighter than the page (white on light themes) */
   --color-btn-primary-text: #0A0A10;
   --color-nav-hover-bg:     rgba(255,255,255,0.05);
   --color-hover-overlay:    rgba(255,255,255,0.04);
@@ -1061,7 +1061,7 @@
   --color-md-blockquote-bg: rgba(90,176,255,0.06);
   --color-selection-bg:     rgba(90,176,255,0.25);
   --color-input-bg:         #0F1626;
-  --color-paste-bg:         #0F1626;
+  --color-paste-bg:         #151D31;
   --color-nav-hover-bg:     rgba(255,255,255,0.05);
   --color-hover-overlay:    rgba(255,255,255,0.04);
   --color-topnav-bg:        rgba(15,22,38,0.85);
@@ -1095,7 +1095,7 @@
   --color-md-blockquote-bg: rgba(74,222,158,0.06);
   --color-selection-bg:     rgba(74,222,158,0.25);
   --color-input-bg:         #121A16;
-  --color-paste-bg:         #121A16;
+  --color-paste-bg:         #17211C;
   --color-nav-hover-bg:     rgba(255,255,255,0.05);
   --color-hover-overlay:    rgba(255,255,255,0.04);
   --color-topnav-bg:        rgba(18,26,22,0.85);
@@ -1129,7 +1129,7 @@
   --color-md-blockquote-bg: rgba(244,114,182,0.06);
   --color-selection-bg:     rgba(244,114,182,0.25);
   --color-input-bg:         #1B1420;
-  --color-paste-bg:         #1B1420;
+  --color-paste-bg:         #221A29;
   --color-nav-hover-bg:     rgba(255,255,255,0.05);
   --color-hover-overlay:    rgba(255,255,255,0.04);
   --color-topnav-bg:        rgba(27,20,32,0.85);

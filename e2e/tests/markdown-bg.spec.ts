@@ -1,8 +1,23 @@
 import { test, expect, uid } from "../fixtures";
 
-// A Markdown paste sits on the same paste surface as code (white on light themes),
-// not on the page background.
-for (const theme of ["light", "sand", "rose"]) {
+// A Markdown paste sits on the same paste surface as code, a step lighter than the page:
+// white on light themes, a slightly lighter shade on dark ones.
+const SURFACE: Record<string, string> = {
+  light: "rgb(255, 255, 255)",
+  sand: "rgb(255, 255, 255)",
+  rose: "rgb(255, 255, 255)",
+  dark: "rgb(35, 35, 43)",
+  midnight: "rgb(21, 29, 49)",
+  forest: "rgb(23, 33, 28)",
+  plum: "rgb(34, 26, 41)",
+};
+
+function lum(rgb: string) {
+  const [r, g, b] = rgb.match(/\d+/g)!.map(Number);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+for (const theme of Object.keys(SURFACE)) {
   test(`markdown paste background is the paste surface (${theme})`, async ({ page, auth, paste }) => {
     const id = uid();
     const token = await auth.createAndLogin({
@@ -15,8 +30,8 @@ for (const theme of ["light", "sand", "rose"]) {
     await page.goto(`/docs/${md}`);
     const mdBg = await page.locator(".md-body").evaluate((el) => getComputedStyle(el).backgroundColor);
     const pageBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    expect(mdBg).toBe("rgb(255, 255, 255)");
-    expect(mdBg).not.toBe(pageBg);
+    expect(mdBg).toBe(SURFACE[theme]);
+    expect(lum(mdBg)).toBeGreaterThan(lum(pageBg)); // lighter than the page
 
     // Same as a code paste's surface.
     await page.goto(`/docs/${code}`);
