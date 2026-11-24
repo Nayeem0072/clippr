@@ -1,4 +1,4 @@
-export function Spinner({ size = 18, color = "#00C4FF" }: { size?: number; color?: string }) {
+export function Spinner({ size = 18, color = "var(--color-blue)" }: { size?: number; color?: string }) {
   return (
     <svg
       className="animate-spin"

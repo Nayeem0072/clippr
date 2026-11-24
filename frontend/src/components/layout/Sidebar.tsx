@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ThemePicker } from "./ThemePicker";
 import { useAuth } from "../../hooks/useAuth";
-import { useTheme } from "../../hooks/useTheme";
 import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { sendsApi } from "../../api/sends";
@@ -77,49 +77,8 @@ const SharedIcon = () => (
   </svg>
 );
 
-const SunIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <circle cx="12" cy="12" r="4"/>
-    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-  </svg>
-);
 
-const MoonIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-  </svg>
-);
 
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  return (
-    <button
-      onClick={toggleTheme}
-      title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-      style={{
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        color: "var(--color-ink-3)",
-        padding: 6,
-        borderRadius: 8,
-        transition: "color 150ms, background 150ms",
-        display: "flex",
-        alignItems: "center",
-      }}
-      onMouseOver={e => {
-        e.currentTarget.style.color = "var(--color-ink)";
-        e.currentTarget.style.background = "var(--color-hover-overlay)";
-      }}
-      onMouseOut={e => {
-        e.currentTarget.style.color = "var(--color-ink-3)";
-        e.currentTarget.style.background = "none";
-      }}
-    >
-      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-    </button>
-  );
-}
 
 const COLLAPSED_KEY = "clippr-sidebar-collapsed";
 
@@ -166,7 +125,7 @@ export function Sidebar() {
         <Link to="/new" className="sidebar-logo" title="Clippr" aria-label="Clippr home">
           <div style={{
             width: 32, height: 32, borderRadius: 10,
-            background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+            background: "var(--gradient-brand)",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0,
           }}>
@@ -179,7 +138,7 @@ export function Sidebar() {
           <span className="sidebar-brand">Clippr</span>
         </Link>
         <div className="sidebar-head-actions">
-          <ThemeToggle />
+          <ThemePicker />
           <NotificationBell />
         </div>
       </div>
@@ -217,7 +176,7 @@ export function Sidebar() {
         <div className="sidebar-user">
           <div title={user?.display_name ?? user?.handle} style={{
             width: 32, height: 32, borderRadius: 10,
-            background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+            background: "var(--gradient-brand)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 13, fontWeight: 700, color: "#0A0A14", flexShrink: 0,
           }}>
@@ -257,7 +216,7 @@ export function MobileTopBar() {
       <Link to="/new" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
         <div style={{
           width: 28, height: 28, borderRadius: 8,
-          background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+          background: "var(--gradient-brand)",
           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
         }}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -269,7 +228,7 @@ export function MobileTopBar() {
         <span style={{ fontSize: 15, fontWeight: 700, color: "var(--color-ink)", letterSpacing: "-0.3px" }}>Clippr</span>
       </Link>
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <ThemeToggle />
+        <ThemePicker />
         <NotificationBell />
       </div>
     </div>

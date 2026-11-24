@@ -58,7 +58,7 @@ export default function OrgInvitesPage() {
             <div key={inv.id} className="pp-card" style={{ padding: "14px 16px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <code style={{ fontSize: 13, fontFamily: "monospace", color: "#00C4FF", wordBreak: "break-all", display: "block" }}>
+                  <code style={{ fontSize: 13, fontFamily: "monospace", color: "var(--color-blue)", wordBreak: "break-all", display: "block" }}>
                     {window.location.origin}/join/{inv.code}
                   </code>
                   <div style={{ display: "flex", gap: 12, fontSize: 12, color: "var(--color-ink-3)", marginTop: 6 }}>

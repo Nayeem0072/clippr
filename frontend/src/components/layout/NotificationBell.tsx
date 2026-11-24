@@ -185,7 +185,7 @@ export function NotificationBell() {
                     >
                       <div style={{
                         width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5,
-                        background: n.read_at === null ? "#00C4FF" : "transparent",
+                        background: n.read_at === null ? "var(--color-blue)" : "transparent",
                       }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{
@@ -228,7 +228,7 @@ export function NotificationBell() {
                   >
                     <div style={{
                       width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5,
-                      background: n.read_at === null ? "#00C4FF" : "transparent",
+                      background: n.read_at === null ? "var(--color-blue)" : "transparent",
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, color: "var(--color-ink)", margin: "0 0 2px", fontWeight: 500 }}>

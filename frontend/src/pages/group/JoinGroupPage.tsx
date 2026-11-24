@@ -60,7 +60,7 @@ export default function JoinGroupPage() {
       <div className="pp-card" style={{ padding: 32, textAlign: "center", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{
           width: 64, height: 64, borderRadius: 18,
-          background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+          background: "var(--gradient-brand)",
           display: "flex", alignItems: "center", justifyContent: "center",
           fontSize: 28, fontWeight: 700, color: "#fff",
           margin: "0 auto",

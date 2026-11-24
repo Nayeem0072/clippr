@@ -1,22 +1,10 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useTheme } from "../../hooks/useTheme";
+import { ThemePicker } from "./ThemePicker";
 
-const SunIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <circle cx="12" cy="12" r="4"/>
-    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-  </svg>
-);
 
-const MoonIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
-  </svg>
-);
 
 export function TopNav() {
   const navigate = useNavigate();
-  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav className="topnav-bar">
@@ -25,7 +13,7 @@ export function TopNav() {
         <Link to="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <div style={{
             width: 30, height: 30, borderRadius: 9,
-            background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+            background: "var(--gradient-brand)",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0,
           }}>
@@ -42,14 +30,7 @@ export function TopNav() {
 
         {/* Auth buttons + theme toggle */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            onClick={toggleTheme}
-            title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-            className="btn-ghost btn-sm"
-            style={{ padding: "0 10px" }}
-          >
-            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-          </button>
+          <ThemePicker className="btn-ghost btn-sm theme-picker-top" />
           <button
             onClick={() => navigate("/login")}
             className="btn-ghost btn-sm"

@@ -47,7 +47,7 @@ export default function GroupMembersPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+                background: "var(--gradient-brand)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 14, fontWeight: 700, color: "#fff",
               }}>

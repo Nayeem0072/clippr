@@ -119,7 +119,7 @@ export function SendPanel({ slug, privacy }: Props) {
               >
                 <div style={{
                   width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                  background: "linear-gradient(135deg, #00C4FF, #0080FF)",
+                  background: "var(--gradient-brand)",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 11, fontWeight: 700, color: "#0A0A14",
                 }}>

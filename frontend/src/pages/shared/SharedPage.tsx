@@ -81,7 +81,7 @@ export default function SharedPage() {
                 {send.read_at === null && (
                   <div style={{
                     position: "absolute", top: 10, right: 10, zIndex: 1,
-                    width: 8, height: 8, borderRadius: "50%", background: "#00C4FF",
+                    width: 8, height: 8, borderRadius: "50%", background: "var(--color-blue)",
                   }} />
                 )}
                 <div>
