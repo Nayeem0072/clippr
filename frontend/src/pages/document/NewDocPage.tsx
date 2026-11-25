@@ -8,6 +8,7 @@ import { StickyEditorHeader } from "../../components/document/StickyEditorHeader
 import { DIAGRAM_LANGUAGE, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
 import { CHECKLIST_LANGUAGE, isChecklistEmpty } from "../../lib/checklist";
+import { MARKDOWN_LANGUAGE, isMarkdownDoc } from "../../lib/markdown";
 import { Button } from "../../components/ui/Button";
 import { useToast } from "../../components/ui/Toast";
 import { useAuth } from "../../hooks/useAuth";
@@ -20,22 +21,29 @@ export default function NewDocPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
 
+  // Markdown is its own mode now, not a code language; an old "markdown" default opens that mode.
+  const savedLanguage = getDefaultLanguage();
   const [form, setForm] = useState({
     title: "",
     content: "",
-    language: getDefaultLanguage(),
+    language: isMarkdownDoc(savedLanguage) ? "plaintext" : savedLanguage,
     privacy: getDefaultPrivacy(),
     groupId: getDefaultGroupId(),
   });
 
-  // Text, checklist and diagram drafts are kept separately, so switching modes never loses any.
-  const [mode, setMode] = useState<EditorMode>("code");
+  // Text, Markdown, checklist and diagram drafts are kept separately, so switching modes never loses any.
+  const [mode, setMode] = useState<EditorMode>(isMarkdownDoc(savedLanguage) ? "markdown" : "code");
+  const [markdown, setMarkdown] = useState("");
   const [diagram, setDiagram] = useState<string | null>(null);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
   const [checklist, setChecklist] = useState("");
 
   const canSave =
-    mode === "diagram" ? !isDiagramEmpty(diagram) : mode === "checklist" ? !isChecklistEmpty(checklist) : !!form.content.trim();
+    mode === "diagram" ? !isDiagramEmpty(diagram) : mode === "checklist"
+        ? !isChecklistEmpty(checklist)
+        : mode === "markdown"
+          ? !!markdown.trim()
+          : !!form.content.trim();
 
   const { data: groupsData } = useQuery({
     queryKey: ["my-groups"],
@@ -64,6 +72,10 @@ export default function NewDocPage() {
       if (mode === "checklist") {
         if (isChecklistEmpty(checklist)) throw new Error("Add an item first");
         return docsApi.create({ ...common, language: CHECKLIST_LANGUAGE, content: checklist });
+      }
+      if (mode === "markdown") {
+        if (!markdown.trim()) throw new Error("Write something first");
+        return docsApi.create({ ...common, language: MARKDOWN_LANGUAGE, content: markdown });
       }
       return docsApi.create({ ...common, content: form.content, language: form.language });
     },
@@ -96,7 +108,9 @@ export default function NewDocPage() {
             ? "Draw shapes, arrows and diagrams"
             : mode === "checklist"
               ? "A to-do list you can tick off"
-              : "Share code, configs, or notes"
+              : mode === "markdown"
+                ? "Write formatted notes and docs"
+                : "Share code, configs, or notes"
         }
       >
         <Button
@@ -134,6 +148,8 @@ export default function NewDocPage() {
           diagramRef={diagramRef}
           checklist={checklist}
           onChecklistChange={setChecklist}
+          markdown={markdown}
+          onMarkdownChange={setMarkdown}
         />
       </div>
 

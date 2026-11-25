@@ -9,6 +9,7 @@ import { StickyEditorHeader } from "../../components/document/StickyEditorHeader
 import { isDiagramDoc, isDiagramEmpty, type DiagramCanvasHandle } from "../../components/diagram";
 import { buildDiagramPayload } from "../../lib/diagramExport";
 import { isChecklistDoc, isChecklistEmpty } from "../../lib/checklist";
+import { isMarkdownDoc } from "../../lib/markdown";
 import { Button } from "../../components/ui/Button";
 import { PageLoader } from "../../components/ui/Spinner";
 import { useToast } from "../../components/ui/Toast";
@@ -40,6 +41,7 @@ export default function EditDocPage() {
 
   const isDiagram = isDiagramDoc(data?.doc.language);
   const isChecklist = isChecklistDoc(data?.doc.language);
+  const isMarkdown = isMarkdownDoc(data?.doc.language);
   const diagramRef = useRef<DiagramCanvasHandle>(null);
 
   useEffect(() => {
@@ -102,7 +104,7 @@ export default function EditDocPage() {
 
   return (
     <div>
-      <StickyEditorHeader title={isDiagram ? "Edit Diagram" : isChecklist ? "Edit Checklist" : "Edit Paste"}>
+      <StickyEditorHeader title={isDiagram ? "Edit Diagram" : isChecklist ? "Edit Checklist" : isMarkdown ? "Edit Markdown" : "Edit Paste"}>
         <Button variant="ghost" onClick={() => navigate(`/docs/${slug}`)}>Cancel</Button>
         <Button onClick={() => update.mutate()} loading={update.isPending}>Save Changes</Button>
       </StickyEditorHeader>
@@ -113,7 +115,9 @@ export default function EditDocPage() {
           groupId={form.groupId}
           userGroups={groupsData?.groups ?? []}
           onChange={(f, v) => setForm((prev) => ({ ...prev, [f]: v }))}
-          mode={isDiagram ? "diagram" : isChecklist ? "checklist" : "code"}
+          mode={isDiagram ? "diagram" : isChecklist ? "checklist" : isMarkdown ? "markdown" : "code"}
+          markdown={isMarkdown ? form.content : ""}
+          onMarkdownChange={(v) => setForm((prev) => ({ ...prev, content: v }))}
           checklist={isChecklist ? data.doc.content : ""}
           onChecklistChange={(v) => setForm((prev) => ({ ...prev, content: v }))}
           diagram={isDiagram ? data.doc.content : null}
