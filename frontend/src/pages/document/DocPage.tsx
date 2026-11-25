@@ -15,6 +15,7 @@ import { formatDate, formatRelative } from "../../lib/utils";
 import { isDiagramDoc, LazyDiagramCanvas } from "../../components/diagram";
 import { downloadDiagramPng, downloadDiagramSvg } from "../../lib/diagramExport";
 import { isChecklistDoc } from "../../lib/checklist";
+import { isMarkdownDoc } from "../../lib/markdown";
 import { ChecklistView } from "../../components/checklist/ChecklistView";
 import { useTheme } from "../../hooks/useTheme";
 
@@ -232,7 +233,7 @@ const [sendOpen, setSendOpen] = useState(false);
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
             <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--color-border)" }} />
           </div>
-          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{isDiagram ? "excalidraw" : isChecklist ? "todo" : doc.language}</span>
+          <span style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-ink-3)" }}>{doc.title}.{isDiagram ? "excalidraw" : isChecklist ? "todo" : isMarkdownDoc(doc.language) ? "md" : doc.language}</span>
         </div>
 
         {isDiagram ? (

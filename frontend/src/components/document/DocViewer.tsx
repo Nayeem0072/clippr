@@ -1,6 +1,6 @@
-import { marked } from "marked";
-import DOMPurify from "dompurify";
 import { useTheme } from "../../hooks/useTheme";
+import { isMarkdownDoc } from "../../lib/markdown";
+import { MarkdownView } from "../markdown/MarkdownView";
 
 interface DocViewerProps {
   html: string;
@@ -12,19 +12,7 @@ export function DocViewer({ html, language, content }: DocViewerProps) {
   const { mode } = useTheme();
   const isLight = mode === "light";
 
-  if (language === "markdown" && content) {
-    // Wide tables scroll sideways in their own box instead of being cut off by the card.
-    const rendered = DOMPurify.sanitize(marked.parse(content) as string)
-      .replace(/<table>/g, '<div class="md-table-wrap" tabindex="0"><table>')
-      .replace(/<\/table>/g, "</table></div>");
-    return (
-      <div
-        className="md-body"
-        style={{ color: "var(--color-ink)" }}
-        dangerouslySetInnerHTML={{ __html: rendered }}
-      />
-    );
-  }
+  if (isMarkdownDoc(language) && content) return <MarkdownView content={content} />;
 
   // Strip Shiki's inline background-color so the app background shows through.
   // In light mode, also strip token color styles (Shiki uses github-dark theme

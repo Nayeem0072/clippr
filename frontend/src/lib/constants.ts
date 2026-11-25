@@ -19,7 +19,6 @@ export const SUPPORTED_LANGUAGES = [
   { value: "sql", label: "SQL" },
   { value: "bash", label: "Bash" },
   { value: "sh", label: "Shell" },
-  { value: "markdown", label: "Markdown" },
   { value: "dockerfile", label: "Dockerfile" },
   { value: "nginx", label: "Nginx" },
   { value: "xml", label: "XML" },

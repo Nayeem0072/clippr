@@ -8,8 +8,9 @@ import { setDefaultLanguage, setDefaultPrivacy, setDefaultGroupId } from "../../
 import type { Group } from "../../api/groups";
 import { LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
 import { ChecklistEditor } from "../checklist/ChecklistEditor";
+import { MarkdownEditor } from "../markdown/MarkdownEditor";
 
-export type EditorMode = "code" | "diagram" | "checklist";
+export type EditorMode = "code" | "markdown" | "checklist" | "diagram";
 
 interface DocEditorProps {
   title: string;
@@ -21,10 +22,12 @@ interface DocEditorProps {
   showSetDefault?: boolean;
   onSetDefault?: () => void;
   onChange: (field: string, value: string | number | null) => void;
-  /** "diagram" / "checklist" swap the code editor and language picker for a canvas / to-do list. */
+  /** "markdown" / "checklist" / "diagram" swap the code editor and language picker for a Markdown editor / to-do list / canvas. */
   mode?: EditorMode;
-  /** When given, icons in the top-right corner switch between text, checklist and diagram. */
+  /** When given, icons in the top-right corner switch between text, Markdown, checklist and diagram. */
   onModeChange?: (mode: EditorMode) => void;
+  markdown?: string;
+  onMarkdownChange?: (content: string) => void;
   checklist?: string;
   onChecklistChange?: (content: string) => void;
   diagram?: string | null;
@@ -49,6 +52,14 @@ const ChecklistIcon = () => (
   </svg>
 );
 
+const MarkdownIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <rect x="0.75" y="3" width="14.5" height="10" rx="1.75" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M3.5 10.5v-5l2 2.5 2-2.5v5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M11.5 5.5v5M9.75 8.75l1.75 1.75 1.75-1.75" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const WriteIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
     <path d="M10.5 2.5l3 3L6 13H3v-3l7.5-7.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -59,12 +70,14 @@ const WriteIcon = () => (
 export function DocEditor({
   title, content, language, privacy, groupId, userGroups, showSetDefault, onSetDefault, onChange,
   mode = "code", onModeChange, diagram = null, onDiagramChange, diagramRef,
-  checklist = "", onChecklistChange,
+  checklist = "", onChecklistChange, markdown = "", onMarkdownChange,
 }: DocEditorProps) {
   const isDiagram = mode === "diagram";
   const isChecklist = mode === "checklist";
+  const isMarkdown = mode === "markdown";
   const modes: { mode: EditorMode; label: string; icon: JSX.Element }[] = [
     { mode: "code", label: "Switch to text", icon: <WriteIcon /> },
+    { mode: "markdown", label: "Switch to Markdown", icon: <MarkdownIcon /> },
     { mode: "checklist", label: "Switch to checklist", icon: <ChecklistIcon /> },
     { mode: "diagram", label: "Switch to diagram", icon: <DiagramIcon /> },
   ];
@@ -84,7 +97,7 @@ export function DocEditor({
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <Input
-            placeholder={isDiagram ? "Untitled diagram" : isChecklist ? "Untitled checklist" : "Untitled paste"}
+            placeholder={isDiagram ? "Untitled diagram" : isChecklist ? "Untitled checklist" : isMarkdown ? "Untitled document" : "Untitled paste"}
             value={title}
             onChange={(e) => onChange("title", e.target.value)}
             className="text-[15px] font-medium bg-transparent border-transparent hover:border-border focus:!border-blue/40 px-0 rounded-none border-b"
@@ -119,6 +132,8 @@ export function DocEditor({
         />
       ) : isChecklist ? (
         <ChecklistEditor value={checklist} onChange={(v) => onChecklistChange?.(v)} />
+      ) : isMarkdown ? (
+        <MarkdownEditor value={markdown} onChange={(v) => onMarkdownChange?.(v)} />
       ) : (
       <CodeEditor
         value={content}
@@ -136,7 +151,7 @@ export function DocEditor({
       )}
 
       <div className="flex flex-wrap gap-3 items-center">
-        {!isDiagram && !isChecklist && (
+        {mode === "code" && (
           <div className="w-40">
             <Select
               value={language}
