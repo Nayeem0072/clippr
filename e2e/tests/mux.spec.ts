@@ -187,3 +187,41 @@ test.describe("Mux panel: minimum pane size", () => {
     expect(first).toBeGreaterThanOrEqual(255);
   });
 });
+
+test.describe("Mux panel: pane menu", () => {
+  test("pane menu: copy/move/delete for owners, read-only actions for others", async ({ page, auth, paste }) => {
+    const other = await newUser(auth, "muxmo", false);
+    const theirs = await paste.createViaApi(other.token, { title: "Their paste", content: "theirs" });
+    const me = await newUser(auth, "muxmm");
+    const mine = await paste.createViaApi(me.token, { title: "Doomed paste", content: "delete me" });
+
+    await page.goto("/mux");
+    await addViaSlug(page, theirs);
+    await addViaSlug(page, mine);
+    await expect(page.getByTestId("mux-pane")).toHaveCount(2);
+
+    // Someone else's paste: viewer actions only.
+    await pane(page, theirs).getByRole("button", { name: "More actions" }).click();
+    let menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "Copy content" })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: /Delete/ })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem", { name: /collection/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(menu).toHaveCount(0);
+
+    // My paste: owner actions, and Delete closes the pane.
+    await pane(page, mine).getByRole("button", { name: "More actions" }).click();
+    menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem", { name: "Add to collection…" })).toBeVisible();
+    await menu.getByRole("menuitem", { name: "Delete…" }).click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByTestId("mux-pane")).toHaveCount(1);
+    await expect(pane(page, theirs)).toBeVisible();
+
+    const res = await page.request.get(`http://localhost:5173/api/documents/${mine}`, {
+      headers: { Authorization: `Bearer ${me.token}` },
+    });
+    expect(res.status()).toBe(404);
+  });
+});
