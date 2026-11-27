@@ -53,6 +53,7 @@ describe("runMigrations", () => {
       "006_view_tracking.sql",
       "007_diagrams.sql",
       "008_collections.sql",
+    "009_detach_non_group_pastes.sql",
     ]);
     expect(await runMigrations(db, false)).toEqual([]);
   });

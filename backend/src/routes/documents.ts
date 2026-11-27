@@ -79,7 +79,7 @@ app.post("/", requireAuth, async (c) => {
   await db.prepare(
     `INSERT INTO documents (slug, title, content, language, highlighted_html, search_text, preview_svg, privacy, group_id, owner_id, collection_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(slug, title ?? "Untitled", storedContent, language, highlighted_html, searchText, previewSvg, privacy, group_id ?? null, me.id, collectionId);
+  ).run(slug, title ?? "Untitled", storedContent, language, highlighted_html, searchText, previewSvg, privacy, privacy === "group" ? group_id : null, me.id, collectionId);
 
   return c.json({ slug, title: title ?? "Untitled", language, privacy, collection_id: collectionId, created_at: Math.floor(Date.now() / 1000) }, 201);
 });
@@ -176,13 +176,33 @@ app.patch("/:slug", requireAuth, async (c) => {
     updates.push("privacy = ?");
     values.push(privacy);
   }
-  if (group_id !== undefined) { updates.push("group_id = ?"); values.push(group_id); }
+  if (privacy !== undefined || group_id !== undefined) {
+    // Only group pastes belong to a group: making a paste public/private detaches it,
+    // otherwise it keeps showing up on the group's page.
+    const nextPrivacy: string = privacy ?? doc.privacy;
+    const nextGroup: number | null =
+      nextPrivacy === "group" ? (group_id !== undefined ? group_id : doc.group_id) ?? null : null;
+    if (nextPrivacy === "group") {
+      if (!nextGroup) return c.json({ error: "group_id required for group privacy" }, 400);
+      if (nextGroup !== doc.group_id) {
+        const member = await db
+          .query<{ user_id: number }, [number, number]>(
+            "SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?"
+          )
+          .get(nextGroup, me.id);
+        if (!member) return c.json({ error: "You are not a member of that group" }, 403);
+      }
+    }
+    updates.push("group_id = ?");
+    values.push(nextGroup);
 
-  // A group collection only holds that group's pastes: moving the paste out of the group unfiles it.
-  if ((privacy !== undefined || group_id !== undefined) && doc.collection_id) {
-    const col = await getCollection(doc.collection_id);
-    const next = { privacy: privacy ?? doc.privacy, group_id: group_id !== undefined ? group_id : doc.group_id };
-    if (!col || !stillFits(col, next)) updates.push("collection_id = NULL");
+    // A group collection only holds that group's pastes: moving the paste out of the group unfiles it.
+    if (doc.collection_id) {
+      const col = await getCollection(doc.collection_id);
+      if (!col || !stillFits(col, { privacy: nextPrivacy as Document["privacy"], group_id: nextGroup })) {
+        updates.push("collection_id = NULL");
+      }
+    }
   }
 
   if (content !== undefined || language !== undefined) {

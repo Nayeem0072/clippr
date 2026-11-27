@@ -266,22 +266,22 @@ app.get("/:slug/documents", optionalAuth, async (c) => {
   const page = Math.max(Number(c.req.query("page") ?? 1), 1);
   const offset = (page - 1) * limit;
 
-  const privacy = role ? ["public", "group"] : ["public"];
-  const placeholders = privacy.map(() => "?").join(", ");
+  // Only group pastes belong to a group, and only members may see them.
+  if (!role) return c.json({ documents: [] });
 
   const docs = await db
     .query<
       { slug: string; title: string; language: string; privacy: string; owner_id: number; owner_handle: string; created_at: number },
-      any[]
+      [number, number, number]
     >(
       `SELECT d.slug, d.title, d.language, d.privacy, d.owner_id,
               u.handle as owner_handle, d.created_at
        FROM documents d JOIN users u ON d.owner_id = u.id
-       WHERE d.group_id = ? AND d.privacy IN (${placeholders})
+       WHERE d.group_id = ? AND d.privacy = 'group'
        ORDER BY d.created_at DESC
        LIMIT ? OFFSET ?`
     )
-    .all(group.id, ...privacy, limit, offset);
+    .all(group.id, limit, offset);
 
   return c.json({ documents: docs });
 });
