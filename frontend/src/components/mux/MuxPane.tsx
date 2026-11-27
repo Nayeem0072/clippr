@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { docsApi, type Document } from "../../api/documents";
 import { ApiError } from "../../api/client";
@@ -16,6 +15,7 @@ import { buildDiagramPayload } from "../../lib/diagramExport";
 import { isChecklistDoc } from "../../lib/checklist";
 import { ChecklistEditor } from "../checklist/ChecklistEditor";
 import { ChecklistView } from "../checklist/ChecklistView";
+import { PaneMenu } from "./PaneMenu";
 
 type DocWithOwner = Document & { owner: { handle: string; display_name: string | null } };
 
@@ -203,11 +203,7 @@ export function MuxPane({ paneId, slug, focused, onFocus, onSplit, canSplit, onC
               </Button>
             </>
           )}
-          {slug && (
-            <Link to={`/docs/${slug}`} className="mux-icon-btn" title="Open paste page" aria-label="Open paste page">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 3H3.5A1.5 1.5 0 002 4.5v8A1.5 1.5 0 003.5 14h8a1.5 1.5 0 001.5-1.5V10M9 2h5v5M14 2L7.5 8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            </Link>
-          )}
+          {doc && <PaneMenu doc={doc} isOwner={isOwner} editing={editing} onDeleted={onClose} />}
           <span className="mux-desktop-only" style={{ display: "contents" }}>
             {iconBtn("Split left", () => onSplit("left"),
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.4"/><path d="M8 2.5v11" stroke="currentColor" strokeWidth="1.4"/><path d="M1.5 4.5a2 2 0 012-2H8v11H3.5a2 2 0 01-2-2z" fill="currentColor" fillOpacity="0.35"/></svg>,
