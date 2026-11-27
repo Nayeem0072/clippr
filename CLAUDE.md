@@ -116,5 +116,5 @@ All UI work must be mobile-friendly. Breakpoint is `768px`. On mobile:
 ### First-time Turso setup (fresh database, no data to import)
 1. `turso db create pastepad`, then `turso db tokens create pastepad`.
 2. Set the env vars above on Vercel and deploy. The build runs `bun run migrate`, which creates the schema on the empty database.
-3. Verify in `turso db shell pastepad`: `SELECT name FROM _migrations;` lists 001–008, and **`PRAGMA foreign_keys;` returns 1**. The schema relies on `ON DELETE CASCADE`, so if it returns 0, fix FK enforcement before going live.
+3. Verify in `turso db shell pastepad`: `SELECT name FROM _migrations;` lists 001–009, and **`PRAGMA foreign_keys;` returns 1**. The schema relies on `ON DELETE CASCADE`, so if it returns 0, fix FK enforcement before going live.
 4. Smoke test: signup/login, create a paste, search, OG image, group join.

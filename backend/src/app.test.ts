@@ -281,6 +281,57 @@ describe("groups (transaction paths)", () => {
   });
 });
 
+describe("group pastes: only group-privacy pastes belong to a group", () => {
+  async function setup(prefix: string) {
+    const slug = `${prefix}-${uid}`;
+    expect((await call("POST", "/api/groups", { slug, name: "Group", visibility: "public" }, alice.token)).status).toBe(201);
+    const g = await call("GET", `/api/groups/${slug}`, undefined, alice.token);
+    return { slug, id: g.data.group.id as number };
+  }
+  const listed = async (slug: string, token?: string) =>
+    ((await call("GET", `/api/groups/${slug}/documents`, undefined, token)).data.documents as Json[]).map((d) => d.slug);
+
+  it("making a group paste public detaches it from the group page", async () => {
+    const g = await setup("gp-detach");
+    const doc = await call("POST", "/api/documents", { content: "x", privacy: "group", group_id: g.id }, alice.token);
+    expect(await listed(g.slug, alice.token)).toEqual([doc.data.slug]);
+
+    // The edit page sends no group_id when the paste stops being a group paste.
+    expect((await call("PATCH", `/api/documents/${doc.data.slug}`, { privacy: "public" }, alice.token)).status).toBe(200);
+    expect(await listed(g.slug, alice.token)).toEqual([]);
+    const got = await call("GET", `/api/documents/${doc.data.slug}`, undefined, alice.token);
+    expect(got.data.doc.group_id).toBeNull();
+
+    // And back into the group.
+    await call("PATCH", `/api/documents/${doc.data.slug}`, { privacy: "group", group_id: g.id }, alice.token);
+    expect(await listed(g.slug, alice.token)).toEqual([doc.data.slug]);
+  });
+
+  it("a public paste created with a group_id isn't attached to the group", async () => {
+    const g = await setup("gp-create");
+    const doc = await call("POST", "/api/documents", { content: "x", privacy: "public", group_id: g.id }, alice.token);
+    expect(doc.status).toBe(201);
+    expect(await listed(g.slug, alice.token)).toEqual([]);
+  });
+
+  it("non-members see no pastes on a public group", async () => {
+    const g = await setup("gp-outsider");
+    await call("POST", "/api/documents", { content: "x", privacy: "group", group_id: g.id }, alice.token);
+    expect(await listed(g.slug, bob.token)).toEqual([]);
+    expect(await listed(g.slug)).toEqual([]);
+  });
+
+  it("can't move a paste into a group you're not in, or into a group without a group_id", async () => {
+    const g = await setup("gp-foreign");
+    const mine = await call("POST", "/api/documents", { content: "x", privacy: "public" }, bob.token);
+    const into = await call("PATCH", `/api/documents/${mine.data.slug}`, { privacy: "group", group_id: g.id }, bob.token);
+    expect(into.status).toBe(403);
+    const noGroup = await call("PATCH", `/api/documents/${mine.data.slug}`, { privacy: "group" }, bob.token);
+    expect(noGroup.status).toBe(400);
+    expect(await listed(g.slug, alice.token)).toEqual([]);
+  });
+});
+
 describe("sends + saved", () => {
   it("sends a paste, shows it in the inbox, and saves it", async () => {
     const { data } = await call("POST", "/api/documents", { content: "share me" }, alice.token);

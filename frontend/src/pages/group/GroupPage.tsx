@@ -48,18 +48,18 @@ export default function GroupPage() {
   return (
     <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: 32 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px 20px", flexWrap: "wrap" }}>
+        <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
             <div style={{
               width: 40, height: 40, borderRadius: 12,
               background: "var(--gradient-brand)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, fontWeight: 700, color: "#fff",
+              fontSize: 18, fontWeight: 700, color: "#fff", flexShrink: 0,
             }}>
               {group.name[0].toUpperCase()}
             </div>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>{group.name}</h1>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-ink)", margin: 0, minWidth: 0, overflowWrap: "anywhere" }}>{group.name}</h1>
             {group.visibility === "private" && <Badge variant="default">Private</Badge>}
             {role && <Badge variant="orange">{role}</Badge>}
           </div>
@@ -71,7 +71,7 @@ export default function GroupPage() {
         </div>
 
         {isAdminOrAbove && (
-          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Link to={`/groups/${slug}/invites`}>
               <Button variant="ghost" size="sm">Invites</Button>
             </Link>
