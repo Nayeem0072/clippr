@@ -18,6 +18,7 @@ import { isChecklistDoc } from "../../lib/checklist";
 import { isMarkdownDoc } from "../../lib/markdown";
 import { ChecklistView } from "../../components/checklist/ChecklistView";
 import { useTheme } from "../../hooks/useTheme";
+import { FolderIcon, MoveToCollectionModal } from "../../components/collection";
 
 export default function DocPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -27,6 +28,7 @@ export default function DocPage() {
   const { toast } = useToast();
 const [sendOpen, setSendOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copiedContent, setCopiedContent] = useState(false);
   const [exporting, setExporting] = useState<"png" | "svg" | null>(null);
@@ -145,6 +147,18 @@ const [sendOpen, setSendOpen] = useState(false);
                 <span className="text-[13px] text-ink-3">edited {formatRelative(doc.updated_at)}</span>
               </>
             )}
+            {doc.collection && (
+              <>
+                <span className="text-ink-3/40 text-xs">·</span>
+                <Link
+                  to={`/collections/${doc.collection.id}`}
+                  style={{ fontSize: 13, color: "var(--color-ink-2)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 5 }}
+                >
+                  <FolderIcon size={13} />
+                  {doc.collection.name}
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -216,7 +230,11 @@ const [sendOpen, setSendOpen] = useState(false);
                 Edit
               </Button>
             </Link>
-<Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Button variant="ghost" size="sm" onClick={() => setMoveOpen(true)}>
+              <FolderIcon size={12} />
+              {doc.collection ? "Move" : "Add to collection"}
+            </Button>
+            <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1.5 3h9M4 3V2a.5.5 0 01.5-.5h3A.5.5 0 018 2v1m1.5 0L9 10a.5.5 0 01-.5.5h-5A.5.5 0 013 10L2.5 3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round"/></svg>
               Delete
             </Button>
@@ -257,6 +275,17 @@ const [sendOpen, setSendOpen] = useState(false);
       </Modal>
 
 {/* Delete confirmation */}
+      {isOwner && (
+        <MoveToCollectionModal
+          open={moveOpen}
+          onClose={() => setMoveOpen(false)}
+          slug={doc.slug}
+          privacy={doc.privacy}
+          groupId={doc.group_id}
+          currentId={doc.collection?.id ?? null}
+        />
+      )}
+
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete paste?">
         <p className="text-[13px] text-ink-3 mb-5 leading-relaxed">
           <strong className="text-ink">"{doc.title}"</strong> will be permanently deleted. This cannot be undone.

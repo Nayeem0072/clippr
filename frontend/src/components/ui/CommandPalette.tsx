@@ -23,6 +23,7 @@ export function CommandPalette({ open, onClose, userHandle }: CommandPaletteProp
     { label: "New Paste", hint: "/new", path: "/new" },
     { label: "Search", hint: "/search", path: "/search" },
     { label: "Saved Pastes", hint: "/saved", path: "/saved" },
+    { label: "Collections", hint: "/collections", path: "/collections" },
     { label: "Mux Panel", hint: "/mux", path: "/mux" },
     { label: "Shared with me", hint: "/shared", path: "/shared" },
     { label: "My Groups", hint: "/groups", path: "/groups" },

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { sendsApi } from "../../api/sends";
 import { NotificationBell } from "./NotificationBell";
+import { FolderIcon } from "../collection/FolderIcon";
 
 interface NavItem {
   to: string;
@@ -151,6 +152,7 @@ export function Sidebar() {
         <NavLink to={`/${user?.handle}`} label="My Pastes" icon={<DocsIcon />} />
         <NavLink to="/shared" label="Shared" icon={<SharedIcon />} />
         <NavLink to="/saved" label="Saved" icon={<SavedIcon />} />
+        <NavLink to="/collections" label="Collections" icon={<FolderIcon />} />
         <NavLink to="/mux" label="Mux" icon={<MuxIcon />} />
       </nav>
 
@@ -244,6 +246,7 @@ const MoreIcon = () => (
 /** Pages reached from the phone nav's "More" sheet (the bar itself keeps five items). */
 const MORE_ITEMS = [
   { to: "/saved", label: "Saved", icon: <SavedIcon /> },
+  { to: "/collections", label: "Collections", icon: <FolderIcon /> },
   { to: "/mux", label: "Mux", icon: <MuxIcon /> },
   { to: "/groups", label: "Groups", icon: <OrgsIcon /> },
   { to: "/settings", label: "Settings", icon: <SettingsIcon /> },

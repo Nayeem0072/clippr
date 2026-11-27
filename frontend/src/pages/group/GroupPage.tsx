@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { groupsApi } from "../../api/groups";
@@ -7,6 +8,9 @@ import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { PageLoader } from "../../components/ui/Spinner";
 import { EmptyState } from "../../components/ui/EmptyState";
+import { collectionsApi } from "../../api/collections";
+import { NewCollectionModal } from "../../components/collection";
+import { CollectionGrid } from "../collections/CollectionsPage";
 
 export default function GroupPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -21,6 +25,14 @@ export default function GroupPage() {
     queryKey: ["group-docs", slug],
     queryFn: () => groupsApi.getDocuments(slug!),
     enabled: !!data,
+  });
+
+  const [creating, setCreating] = useState(false);
+  const groupId = data?.group.id;
+  const { data: colData } = useQuery({
+    queryKey: ["collections", "group", groupId],
+    queryFn: () => collectionsApi.list(groupId),
+    enabled: !!data?.role && groupId !== undefined,
   });
 
   if (isLoading) return <PageLoader />;
@@ -93,6 +105,28 @@ export default function GroupPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {/* Group collections (members only) */}
+      {role && (
+        <section className="collection-section">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+            <h2 className="collection-section-title">Collections</h2>
+            <Button variant="ghost" size="sm" onClick={() => setCreating(true)}>+ New collection</Button>
+          </div>
+          {colData?.collections.length ? (
+            <CollectionGrid collections={colData.collections} />
+          ) : (
+            <p style={{ fontSize: 13, color: "var(--color-ink-3)", margin: 0 }}>
+              No collections yet. Any member can start one and file their group pastes in it.
+            </p>
+          )}
+          <NewCollectionModal
+            open={creating}
+            onClose={() => setCreating(false)}
+            scopes={[{ groupId: group.id, label: group.name }]}
+          />
+        </section>
       )}
 
       {/* Docs */}

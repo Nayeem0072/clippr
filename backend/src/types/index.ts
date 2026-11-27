@@ -19,7 +19,17 @@ export interface Document {
   preview_svg?: string | null;
   privacy: "public" | "group" | "private";
   group_id: number | null;
+  collection_id?: number | null;
   owner_id: number;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface Collection {
+  id: number;
+  name: string;
+  owner_id: number;
+  group_id: number | null;
   created_at: number;
   updated_at: number;
 }

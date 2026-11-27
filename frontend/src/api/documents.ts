@@ -14,6 +14,9 @@ export interface Document {
   updated_at: number;
   /** Checklist pastes: the viewer may tick items (owner, or group member on a group paste). */
   can_check?: boolean;
+  /** The collection it's filed in, when the viewer can see that collection. */
+  collection_id?: number | null;
+  collection?: { id: number; name: string; group_id: number | null } | null;
 }
 
 export interface DocSummary {
@@ -38,6 +41,7 @@ export const docsApi = {
     language?: string;
     privacy?: string;
     group_id?: number;
+    collection_id?: number;
     /** Diagram pastes only: SVG snapshot used for link-preview images. */
     preview_svg?: string;
   }) =>
@@ -71,6 +75,13 @@ export const docsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  /** File a paste in a collection, or take it out (null). Owner only; doesn't count as an edit. */
+  setCollection: (slug: string, collectionId: number | null) =>
+    apiFetch<{ collection_id: number | null; collection: Document["collection"] }>(
+      `/api/documents/${slug}/collection`,
+      { method: "PUT", body: JSON.stringify({ collection_id: collectionId }) }
+    ),
 
   delete: (slug: string) =>
     apiFetch<{ ok: true }>(`/api/documents/${slug}`, { method: "DELETE" }),

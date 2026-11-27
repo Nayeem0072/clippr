@@ -30,6 +30,7 @@ export default function NewDocPage() {
     privacy: getDefaultPrivacy(),
     groupId: getDefaultGroupId(),
   });
+  const [collectionId, setCollectionId] = useState<number | null>(null);
 
   // Text, Markdown, checklist and diagram drafts are kept separately, so switching modes never loses any.
   const [mode, setMode] = useState<EditorMode>(isMarkdownDoc(savedLanguage) ? "markdown" : "code");
@@ -63,6 +64,7 @@ export default function NewDocPage() {
         title: form.title || undefined,
         privacy: form.privacy,
         group_id: form.privacy === "group" ? form.groupId ?? undefined : undefined,
+        collection_id: collectionId ?? undefined,
       };
       if (mode === "diagram") {
         const json = diagramRef.current?.getJSON() ?? diagram ?? "";
@@ -81,6 +83,7 @@ export default function NewDocPage() {
     },
     onSuccess: (data) => {
       if (user?.handle) qc.invalidateQueries({ queryKey: ["profile", user.handle] });
+      if (collectionId !== null) qc.invalidateQueries({ queryKey: ["collections"] });
       navigate(`/docs/${data.slug}`);
     },
     onError: (e: any) => toast(e.message, "error"),
@@ -150,6 +153,8 @@ export default function NewDocPage() {
           onChecklistChange={setChecklist}
           markdown={markdown}
           onMarkdownChange={setMarkdown}
+          collectionId={collectionId}
+          onCollectionChange={setCollectionId}
         />
       </div>
 

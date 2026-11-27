@@ -5,6 +5,7 @@ import { optionalAuth } from "../middleware/optionalAuth.js";
 import { generateSlug } from "../lib/slug.js";
 import { highlightCode } from "../lib/highlight.js";
 import { canCheckDoc, canViewDoc } from "../lib/docAccess.js";
+import { canFileInCollection, canViewCollection, getCollection, stillFits } from "../lib/collections.js";
 import { isDiagram, sanitizePreviewSvg, validateDiagram } from "../lib/diagram.js";
 import { isChecklist, parseChecklist, serializeChecklist, validateChecklist } from "../lib/checklist.js";
 import type { Variables, AuthUser, Document } from "../types/index.js";
@@ -27,7 +28,7 @@ const app = new Hono<{ Variables: Vars }>();
 app.post("/", requireAuth, async (c) => {
   const me = c.var.user!;
   const body = await c.req.json();
-  const { title, content, language = "plaintext", privacy = "public", group_id, preview_svg } = body ?? {};
+  const { title, content, language = "plaintext", privacy = "public", group_id, preview_svg, collection_id } = body ?? {};
 
   if (!content) return c.json({ error: "content is required" }, 400);
   let searchText: string = content;
@@ -58,16 +59,29 @@ app.post("/", requireAuth, async (c) => {
     if (!member) return c.json({ error: "You are not a member of that group" }, 403);
   }
 
+  let collectionId: number | null = null;
+  if (collection_id !== undefined && collection_id !== null) {
+    const col = await getCollection(collection_id);
+    if (!col) return c.json({ error: "Collection not found" }, 404);
+    const fit = await canFileInCollection(
+      col,
+      { owner_id: me.id, privacy, group_id: privacy === "group" ? group_id : null },
+      me.id
+    );
+    if (!fit.ok) return c.json({ error: fit.error }, fit.status);
+    collectionId = col.id;
+  }
+
   const slug = await generateSlug();
   // Diagrams and checklists render in the browser; there's nothing to syntax-highlight.
   const highlighted_html = pasteKind(language) === "code" ? await highlightCode(content, language) : null;
 
   await db.prepare(
-    `INSERT INTO documents (slug, title, content, language, highlighted_html, search_text, preview_svg, privacy, group_id, owner_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(slug, title ?? "Untitled", storedContent, language, highlighted_html, searchText, previewSvg, privacy, group_id ?? null, me.id);
+    `INSERT INTO documents (slug, title, content, language, highlighted_html, search_text, preview_svg, privacy, group_id, owner_id, collection_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(slug, title ?? "Untitled", storedContent, language, highlighted_html, searchText, previewSvg, privacy, group_id ?? null, me.id, collectionId);
 
-  return c.json({ slug, title: title ?? "Untitled", language, privacy, created_at: Math.floor(Date.now() / 1000) }, 201);
+  return c.json({ slug, title: title ?? "Untitled", language, privacy, collection_id: collectionId, created_at: Math.floor(Date.now() / 1000) }, 201);
 });
 
 // GET /api/documents — list own docs
@@ -119,7 +133,15 @@ app.get("/:slug", optionalAuth, async (c) => {
   ).get(doc.owner_id);
 
   const can_check = isChecklist(doc.language) && (await canCheckDoc(doc, me?.id ?? null));
-  return c.json({ doc: { ...publicDoc(doc), owner, can_check } });
+
+  // Only people who can open the collection learn which one the paste is in.
+  let collection: { id: number; name: string; group_id: number | null } | null = null;
+  const col = doc.collection_id ? await getCollection(doc.collection_id) : null;
+  if (col && (await canViewCollection(col, me?.id ?? null))) {
+    collection = { id: col.id, name: col.name, group_id: col.group_id };
+  }
+  const { collection_id: _cid, ...rest } = publicDoc(doc);
+  return c.json({ doc: { ...rest, collection_id: collection ? collection.id : null, owner, can_check, collection } });
 });
 
 // PATCH /api/documents/:slug
@@ -155,6 +177,13 @@ app.patch("/:slug", requireAuth, async (c) => {
     values.push(privacy);
   }
   if (group_id !== undefined) { updates.push("group_id = ?"); values.push(group_id); }
+
+  // A group collection only holds that group's pastes: moving the paste out of the group unfiles it.
+  if ((privacy !== undefined || group_id !== undefined) && doc.collection_id) {
+    const col = await getCollection(doc.collection_id);
+    const next = { privacy: privacy ?? doc.privacy, group_id: group_id !== undefined ? group_id : doc.group_id };
+    if (!col || !stillFits(col, next)) updates.push("collection_id = NULL");
+  }
 
   if (content !== undefined || language !== undefined) {
     let newContent = content ?? doc.content;
@@ -232,6 +261,33 @@ app.post("/:slug/check", requireAuth, async (c) => {
 
   const updated = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
   return c.json({ doc: { ...publicDoc(updated!), can_check: true } });
+});
+
+// PUT /api/documents/:slug/collection { collection_id: number | null } — move a paste into a
+// collection (or out of one). Owner only. Doesn't bump updated_at: filing isn't an edit, and open
+// editors (Mux) would otherwise see a false conflict.
+app.put("/:slug/collection", requireAuth, async (c) => {
+  const me = c.var.user!;
+  const { slug } = c.req.param();
+
+  const doc = await db.query<Document, [string]>("SELECT * FROM documents WHERE slug = ?").get(slug);
+  if (!doc) return c.json({ error: "Not found" }, 404);
+  if (doc.owner_id !== me.id) return c.json({ error: "Forbidden" }, 403);
+
+  const body = await c.req.json().catch(() => null);
+  if (!body || !("collection_id" in body)) return c.json({ error: "collection_id is required" }, 400);
+
+  let collection: { id: number; name: string; group_id: number | null } | null = null;
+  if (body.collection_id !== null) {
+    const col = await getCollection(body.collection_id);
+    if (!col || !(await canViewCollection(col, me.id))) return c.json({ error: "Collection not found" }, 404);
+    const fit = await canFileInCollection(col, doc, me.id);
+    if (!fit.ok) return c.json({ error: fit.error }, fit.status);
+    collection = { id: col.id, name: col.name, group_id: col.group_id };
+  }
+
+  await db.prepare("UPDATE documents SET collection_id = ? WHERE id = ?").run(collection?.id ?? null, doc.id);
+  return c.json({ collection_id: collection?.id ?? null, collection });
 });
 
 // DELETE /api/documents/:slug
