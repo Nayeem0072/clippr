@@ -52,6 +52,7 @@ describe("runMigrations", () => {
       "005_remove_description.sql",
       "006_view_tracking.sql",
       "007_diagrams.sql",
+      "008_collections.sql",
     ]);
     expect(await runMigrations(db, false)).toEqual([]);
   });

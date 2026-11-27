@@ -8,6 +8,7 @@ import groupRoutes from "./routes/groups.js";
 import searchRoutes from "./routes/search.js";
 import sendsRoutes from "./routes/sends.js";
 import savedRoutes from "./routes/saved.js";
+import collectionRoutes from "./routes/collections.js";
 import trendingRoutes from "./routes/trending.js";
 import { ogRoutes } from "./routes/og.js";
 
@@ -26,6 +27,7 @@ app.route("/api/groups", groupRoutes);
 app.route("/api/search", searchRoutes);
 app.route("/api/sends", sendsRoutes);
 app.route("/api/saved", savedRoutes);
+app.route("/api/collections", collectionRoutes);
 app.route("/api/trending", trendingRoutes);
 app.route("/api/og", ogRoutes);
 

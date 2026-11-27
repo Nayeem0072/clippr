@@ -9,6 +9,7 @@ import type { Group } from "../../api/groups";
 import { LazyDiagramCanvas, type DiagramCanvasHandle } from "../diagram";
 import { ChecklistEditor } from "../checklist/ChecklistEditor";
 import { MarkdownEditor } from "../markdown/MarkdownEditor";
+import { CollectionSelect } from "../collection/CollectionSelect";
 
 export type EditorMode = "code" | "markdown" | "checklist" | "diagram";
 
@@ -33,6 +34,9 @@ interface DocEditorProps {
   diagram?: string | null;
   onDiagramChange?: (json: string) => void;
   diagramRef?: Ref<DiagramCanvasHandle>;
+  /** When given (new pastes), shows a collection picker next to privacy. */
+  collectionId?: number | null;
+  onCollectionChange?: (id: number | null) => void;
 }
 
 const DiagramIcon = () => (
@@ -71,6 +75,7 @@ export function DocEditor({
   title, content, language, privacy, groupId, userGroups, showSetDefault, onSetDefault, onChange,
   mode = "code", onModeChange, diagram = null, onDiagramChange, diagramRef,
   checklist = "", onChecklistChange, markdown = "", onMarkdownChange,
+  collectionId, onCollectionChange,
 }: DocEditorProps) {
   const isDiagram = mode === "diagram";
   const isChecklist = mode === "checklist";
@@ -177,6 +182,17 @@ export function DocEditor({
                 ...userGroups.map((g) => ({ value: String(g.id), label: g.name })),
               ]}
               onChange={(e) => onChange("groupId", e.target.value ? Number(e.target.value) : null)}
+            />
+          </div>
+        )}
+        {onCollectionChange && (
+          <div className="w-48">
+            <CollectionSelect
+              value={collectionId ?? null}
+              onChange={onCollectionChange}
+              privacy={privacy}
+              groupId={groupId}
+              groupName={userGroups.find((g) => g.id === groupId)?.name}
             />
           </div>
         )}
